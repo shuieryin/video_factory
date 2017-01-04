@@ -1,5 +1,4 @@
 import fi.iki.elonen.NanoHTTPD;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.xerces.impl.dv.util.Base64;
 import org.json.JSONObject;
@@ -14,15 +13,14 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
-class Server extends NanoHTTPD {
+public class BilibiliManageServer extends NanoHTTPD {
 
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
     private Map<String, BilibiliManager> bilibiliManagerMaps = new HashMap<>();
 
-    private Server() throws IOException {
+    BilibiliManageServer() throws IOException {
         super(4567);
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 
@@ -52,39 +50,13 @@ class Server extends NanoHTTPD {
         System.out.println("\nRunning! Point your browsers to http://localhost:4567/ \n");
     }
 
-    public static void main(String[] args) {
-        try {
-            Server server = new Server();
-
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    System.out.println("closing...");
-                    for (BilibiliManager bm : server.getBilibiliManagerMaps().values()) {
-                        bm.close();
-                        Runtime.getRuntime().exec(new String[]{"bash", "-c", "kill -9 $(pgrep 'geckodriv|java|firefox')"});
-                        FileUtils.forceDelete(new File(server.driverPath()));
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }));
-
-            //noinspection InfiniteLoopStatement
-            String ui = "";
-            while (!"stop".equalsIgnoreCase(ui)) {
-                Scanner userInput = new Scanner(System.in);
-                ui = userInput.next();
-            }
-            System.exit(9);
-        } catch (IOException ioe) {
-            System.err.println("Couldn't start server:\n" + ioe);
-        }
-    }
-
     // http://localhost:4567/bilibili_manager?uid=h121234hjk&event=input_credentials&username=shuieryin&password=46127836471823
 
     @Override
     public Response serve(IHTTPSession session) {
+        System.out.println("Receiving request");
+        System.out.println(session.toString());
+
         if (!session.getUri().equalsIgnoreCase("/bilibili_manager")) {
             return newFixedLengthResponse("invalid commands!");
         }
@@ -145,11 +117,11 @@ class Server extends NanoHTTPD {
         return newFixedLengthResponse(ReturnContent);
     }
 
-    private Map<String, BilibiliManager> getBilibiliManagerMaps() {
+    Map<String, BilibiliManager> getBilibiliManagerMaps() {
         return bilibiliManagerMaps;
     }
 
-    private String driverPath() {
+    String driverPath() {
         return driverPath;
     }
 }
