@@ -4,4 +4,4 @@
 [![Build Status](https://travis-ci.org/shuieryin/bilibili_upload.svg?branch=master)](https://travis-ci.org/shuieryin/bilibili_upload)
 [![Code Climate](http://img.shields.io/badge/code_climate-Java_1.8-brightgreen.svg)](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 
-This is Bilibili upload help node written in Java.
+This is Bilibili upload helper node written in Java.
