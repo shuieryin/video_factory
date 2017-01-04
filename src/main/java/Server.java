@@ -133,16 +133,6 @@ class Server extends NanoHTTPD {
                         returnJSON.put("is_logged_on", false);
                         returnJSON.put("captcha_image_bytes", Base64.encode(captchaImageBytes));
                     }
-
-                    // get the json array for a string
-                    // System.out.println(returnJSON.getJSONArray("genre_title"));
-                    // prints ["International","Pop","slow"]
-
-                    // increment a number by 1
-                    // returnJSON.increment("genre_id");
-
-                    // quote a string allowing the json to be delivered within html
-                    // System.out.println(JSONObject.quote(returnJSON.toString()));
                     break;
             }
             ReturnContent = returnJSON.toString();
