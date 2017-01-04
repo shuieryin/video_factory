@@ -3,16 +3,16 @@ import org.apache.commons.io.IOUtils;
 import org.apache.xerces.impl.dv.util.Base64;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class BilibiliManageServer extends NanoHTTPD {
 
@@ -23,6 +23,22 @@ public class BilibiliManageServer extends NanoHTTPD {
 
     BilibiliManageServer() throws IOException {
         super(4567);
+
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(
+                () -> {
+                    long now = Calendar.getInstance().getTimeInMillis();
+                    for (BilibiliManager bm : bilibiliManagerMaps.values()) {
+                        if (bm.expireTime() < now) {
+                            bm.close();
+                        }
+                    }
+                },
+                10,
+                60 * 5,
+                TimeUnit.SECONDS
+        );
+
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 
         ClassLoader classloader = Thread.currentThread().getContextClassLoader();
@@ -56,7 +72,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     @Override
     public Response serve(IHTTPSession session) {
         System.out.println("Receiving request");
-        System.out.println(session.toString());
+        System.out.println(session.getUri());
 
         if (!session.getUri().equalsIgnoreCase("/bilibili_manager")) {
             return newFixedLengthResponse("invalid commands!");
@@ -78,6 +94,8 @@ public class BilibiliManageServer extends NanoHTTPD {
                     if (null == bm) {
                         bm = new BilibiliManager(uid);
                         bilibiliManagerMaps.put(uid, bm);
+                    } else {
+                        bm.updateExpireTime();
                     }
                     break;
                 case "close_browser_session":
@@ -87,25 +105,24 @@ public class BilibiliManageServer extends NanoHTTPD {
                 case "input_captcha":
                     String inputCaptcha = getParams.get("input_captcha").get(0);
                     boolean isLogonSuccess = bm.tapLogon(inputCaptcha);
-                    // returnJSON.put("event", "input_captcha");
                     returnJSON.put("status", isLogonSuccess);
                     break;
                 case "input_credentials":
                     String username = getParams.get("username").get(0);
                     String password = getParams.get("password").get(0);
-                    if (bm.inputCredentials(username, password)) {
+                    boolean isReopenUrl = "true".equals(getParams.get("is_reopen_url").get(0));
+                    if (bm.inputCredentials(username, password, isReopenUrl)) {
                         returnJSON.put("is_logged_on", true);
                     } else {
-                        File captchaImage = bm.captchaImage();
-                        System.out.println(captchaImage);
-
-                        InputStream captchaImageIn = new FileInputStream(captchaImage);
-                        byte[] captchaImageBytes = IOUtils.toByteArray(captchaImageIn);
-
-                        returnJSON.put("event", "input_captcha");
-                        returnJSON.put("is_logged_on", false);
-                        returnJSON.put("captcha_image_bytes", Base64.encode(captchaImageBytes));
+                        latestCaptcha(bm, returnJSON);
                     }
+                    break;
+                case "pending_process_vids":
+                    List<String> vidsList = pendingProcessVids();
+                    returnJSON.put("vids_list", vidsList);
+                    break;
+                case "get_latest_captcha":
+                    latestCaptcha(bm, returnJSON);
                     break;
             }
             ReturnContent = returnJSON.toString();
@@ -124,5 +141,59 @@ public class BilibiliManageServer extends NanoHTTPD {
 
     String driverPath() {
         return driverPath;
+    }
+
+    String executeCommand(String command) {
+        StringBuilder output = new StringBuilder();
+
+        Process p;
+        try {
+            p = Runtime.getRuntime().exec(command);
+            p.waitFor();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                output.append(line + "\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return output.toString();
+    }
+
+    private List<String> pendingProcessVids() throws IOException {
+        List<String> vidsList = new ArrayList<>();
+
+        Path rootPath = Paths.get("/root/vids/pending_process");
+        Stream<Path> gamePaths = Files.walk(Paths.get("/root/vids/pending_process"));
+        gamePaths.forEach(gamePath -> {
+            if (Files.isDirectory(gamePath) && !gamePath.toString().equals(rootPath.toString())) {
+                try (Stream<Path> vidsPath = Files.walk(gamePath)) {
+                    vidsPath.forEach(vidPath -> {
+                        if (!Files.isDirectory(vidPath)) {
+                            vidsList.add(vidPath.toString());
+                        }
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        return vidsList;
+    }
+
+    private void latestCaptcha(BilibiliManager bm, JSONObject returnJSON) throws IOException {
+        File captchaImage = bm.captchaImage();
+        System.out.println(captchaImage);
+
+        InputStream captchaImageIn = new FileInputStream(captchaImage);
+        byte[] captchaImageBytes = IOUtils.toByteArray(captchaImageIn);
+
+        returnJSON.put("event", "input_captcha");
+        returnJSON.put("is_logged_on", false);
+        returnJSON.put("captcha_image_bytes", Base64.encode(captchaImageBytes));
     }
 }

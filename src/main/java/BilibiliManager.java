@@ -11,6 +11,7 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 class BilibiliManager {
@@ -18,6 +19,7 @@ class BilibiliManager {
     private static final String LOGON_URL = "https://passport.bilibili.com/login";
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
+    private static long expireTime;
 
     private String uid;
     private WebDriver driver;
@@ -27,6 +29,8 @@ class BilibiliManager {
         this.uid = Uid;
 
         System.out.println("launching firefox browser");
+
+        updateExpireTime();
 
         driver = new FirefoxDriver();
         wait = new WebDriverWait(driver, 10);
@@ -58,8 +62,10 @@ class BilibiliManager {
         return driver.findElements(By.id("b_live")).size() > 0;
     }
 
-    boolean inputCredentials(String username, String password) throws IOException, InterruptedException, AWTException {
-        driver.navigate().to(LOGON_URL);
+    boolean inputCredentials(String username, String password, boolean isReopenUrl) throws IOException, InterruptedException, AWTException {
+        if (isReopenUrl) {
+            driver.navigate().to(LOGON_URL);
+        }
 
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
         if (driver.findElements(By.id("b_live")).size() > 0) {
@@ -104,10 +110,18 @@ class BilibiliManager {
         return captchaImgFile;
     }
 
-    void close() throws IOException {
+    void close() {
         if (driver != null) {
             driver.quit();
             System.out.println("session: " + uid + " closed.");
         }
+    }
+
+    long expireTime() {
+        return expireTime;
+    }
+
+    void updateExpireTime() {
+        expireTime = Calendar.getInstance().getTimeInMillis() + 1000 * 60 * 30;
     }
 }
