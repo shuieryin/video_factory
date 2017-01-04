@@ -16,6 +16,7 @@ import java.util.Map;
 
 public class BilibiliManageServer extends NanoHTTPD {
 
+    private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
     private Map<String, BilibiliManager> bilibiliManagerMaps = new HashMap<>();
@@ -26,14 +27,14 @@ public class BilibiliManageServer extends NanoHTTPD {
 
         ClassLoader classloader = Thread.currentThread().getContextClassLoader();
 
-        if (OSValidator.isWindows()) {
+        if (OS.contains("win")) {
             driverPath = DRIVER_NAME + ".exe";
-        } else if (OSValidator.isMac()) {
+        } else if (OS.contains("mac")) {
             driverPath = "mac" + DRIVER_NAME;
-        } else if (OSValidator.isUnix()) {
+        } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
             driverPath = "linux" + DRIVER_NAME;
         } else {
-            throw (new RuntimeException("Your OS is not support!!"));
+            throw (new RuntimeException("Your OS is not supported!! [" + OS + "]"));
         }
 
         InputStream driverStream = classloader.getResourceAsStream(driverPath);
