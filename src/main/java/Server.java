@@ -61,7 +61,7 @@ class Server extends NanoHTTPD {
                     System.out.println("closing...");
                     for (BilibiliManager bm : server.getBilibiliManagerMaps().values()) {
                         bm.close();
-                        Runtime.getRuntime().exec(new String[]{"bash", "-c", "kill -9 $(pgrep -i 'geckodriv|java|firefox')"});
+                        Runtime.getRuntime().exec(new String[]{"bash", "-c", "kill -9 $(pgrep 'geckodriv|java|firefox')"});
                         FileUtils.forceDelete(new File(server.driverPath()));
                     }
                 } catch (IOException e) {
