@@ -124,4 +124,8 @@ class BilibiliManager {
     void updateExpireTime() {
         expireTime = Calendar.getInstance().getTimeInMillis() + 1000 * 60 * 30;
     }
+
+    String uid() {
+        return uid;
+    }
 }
