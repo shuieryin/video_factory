@@ -285,7 +285,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     }
                     break;
                 case "ic":
-                    bm.inputCredentials("shuieryin@gmail.com", "123123", true);
+                    bm.inputCredentials("", "", true);
                     break;
                 case "uv":
                     Map<String, ProcessedVideo> pendingUploadVids = new HashMap<>();
