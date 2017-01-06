@@ -11,7 +11,8 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.Calendar;
+import java.util.*;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 class BilibiliManager {
@@ -36,16 +37,63 @@ class BilibiliManager {
         wait = new WebDriverWait(driver, 10);
     }
 
-    void uploadFlow() throws IOException, InterruptedException, AWTException {
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("b_live")));
-
+    private boolean isLoggedOnForUpload() {
         driver.navigate().to(UPLOAD_URL);
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
 
-        WebElement hintDOM = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
-        System.out.println(hintDOM.getAttribute("innerHTML"));
-//        WebElement postBox = driver.findElement(By.className("u-i b-post"));
-//        WebElement contributeButton = postBox.findElement(By.className("i-link"));
-//        contributeButton.click();
+        return driver.findElements(By.className("home-hint")).size() > 0;
+    }
+
+    String uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
+        if (!isLoggedOnForUpload()) {
+            return "please_login_bilibili";
+        }
+
+        if (processedVideos.isEmpty()) {
+            return "no_processed_vids";
+        }
+
+        for (ProcessedVideo processedVideo : processedVideos.values()) {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
+            for (String targetUploadClipPath : processedVideo.clipPaths()) {
+                WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
+                uploadInput.sendKeys(targetUploadClipPath);
+            }
+
+            WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
+            selfMadeRadio.click();
+
+            WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+
+            List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
+
+            for (WebElement curElement : categoryElements) {
+                String innerHTML = curElement.getAttribute("innerHTML");
+                if ("Gaming".equals(innerHTML)) {
+                    curElement.click();
+                }
+
+                if ("Stand-alone/Online Games".equals(innerHTML)) {
+                    curElement.findElement(By.xpath("..")).click();
+                    break;
+                }
+            }
+
+            WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+            titleField.clear();
+            titleField.sendKeys(processedVideo.videoTitle());
+
+            WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
+            tagsField.sendKeys(processedVideo.gameTitle());
+            tagsField.sendKeys(Keys.ENTER);
+
+            WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
+            descField.sendKeys(processedVideo.videoTitle());
+
+            WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
+            submitButton.click();
+        }
+        return "bilibili_upload_started";
     }
 
     boolean tapLogon(String inputCaptcha) {

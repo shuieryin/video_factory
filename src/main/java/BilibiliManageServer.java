@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,22 +26,24 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
     private Map<String, BilibiliManager> bilibiliManagerMaps = new HashMap<>();
-    private Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
-    private Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
-    private Pattern vidPathPattern = Pattern.compile("/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.([a-zA-Z0-9]+))");
+    private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
+    private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
+    private static Pattern vidPathPattern = Pattern.compile("/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)");
     private ScheduledFuture<?> processVideoScheduler;
     private static final int PER_CLIP_DURATION_SEC = 900;
+    private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
+    private Runtime rt = Runtime.getRuntime();
 
     BilibiliManageServer() throws IOException {
         super(4567);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        rt.addShutdownHook(new Thread(() -> {
             try {
                 System.out.println("closing...");
                 for (BilibiliManager bm : bilibiliManagerMaps.values()) {
                     bm.close();
                 }
-                Runtime.getRuntime().exec(new String[]{"bash", "-c", "kill -9 $(pgrep 'geckodriv|java|firefox')"});
+                executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox')");
                 FileUtils.forceDelete(new File(driverPath));
             } catch (IOException e) {
                 e.printStackTrace();
@@ -166,7 +170,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     returnJSON.put("vids_list", pendingProcessVids(true));
                     break;
                 case "upload_vids":
-                    returnJSON.put("is_logged_on", false);
+                    returnJSON.put("status", bm.uploadVideos(processedVideos));
                     break;
             }
 
@@ -181,8 +185,6 @@ public class BilibiliManageServer extends NanoHTTPD {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        // tapLogon();
-        // uploadFlow();
 
         return newFixedLengthResponse(ReturnContent);
     }
@@ -190,7 +192,6 @@ public class BilibiliManageServer extends NanoHTTPD {
     private String executeCommand(String command) {
         StringBuilder output = new StringBuilder();
 
-        Process p;
         try {
             System.out.println("executing command: [" + command + "]");
             String[] cmd = {
@@ -198,13 +199,24 @@ public class BilibiliManageServer extends NanoHTTPD {
                     "-c",
                     command
             };
-            p = Runtime.getRuntime().exec(cmd);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            Process proc = rt.exec(cmd);
+
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+
             String line;
 
-            while ((line = reader.readLine()) != null) {
+            // read the output from the command
+            while ((line = stdInput.readLine()) != null) {
                 output.append(line + "\n");
-                System.out.println("bash: " + line);
+                System.out.println("cmd in: " + line);
+            }
+
+            // read any errors from the attempted command
+            while ((line = stdError.readLine()) != null) {
+                output.append(line + "\n");
+                System.out.println("cmd err: " + line);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,6 +229,11 @@ public class BilibiliManageServer extends NanoHTTPD {
         List<String> vidsList = new ArrayList<>();
 
         Path rootPath = Paths.get("/root/vids/pending_process");
+
+        if (!Files.exists(rootPath)) {
+            return vidsList;
+        }
+
         Stream<Path> gamePaths = Files.walk(rootPath);
         gamePaths.forEach(gamePath -> {
             if (Files.isDirectory(gamePath) && !gamePath.toString().equals(rootPath.toString())) {
@@ -256,12 +273,29 @@ public class BilibiliManageServer extends NanoHTTPD {
 
     void handleUserInput(String userInput) {
         try {
+            String testUid = "testUid";
+            BilibiliManager bm = bilibiliManagerMaps.get(testUid);
             switch (userInput) {
-                case "gd":
-                    pendingProcessVids(true).forEach(System.out::println);
+                case "ibs":
+                    if (null == bm) {
+                        bm = new BilibiliManager(testUid);
+                        bilibiliManagerMaps.put(testUid, bm);
+                    } else {
+                        bm.updateExpireTime();
+                    }
                     break;
-                case "ngd":
-                    pendingProcessVids(false).forEach(System.out::println);
+                case "ic":
+                    bm.inputCredentials("shuieryin@gmail.com", "123123", true);
+                    break;
+                case "uv":
+                    Map<String, ProcessedVideo> pendingUploadVids = new HashMap<>();
+                    ProcessedVideo testProcessedVideo = new ProcessedVideo(Calendar.getInstance().getTimeInMillis(), "The Witcher 3", "/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01");
+                    testProcessedVideo.setOriginalVideoPath("/Volumes/Anonymous/vids/pending_process/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01.mp4.done.3");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part1.flv");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part2.flv");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part3.flv");
+                    pendingUploadVids.put("The Witcher 3 2016.12.22 - 22.06.57.01", testProcessedVideo);
+                    System.out.println(bm.uploadVideos(pendingUploadVids));
                     break;
             }
         } catch (Exception e) {
@@ -278,32 +312,48 @@ public class BilibiliManageServer extends NanoHTTPD {
 
                 Matcher timerMatcher = timePattern.matcher(timeOutput);
                 timerMatcher.find();
-                int hour = Integer.parseInt(timerMatcher.group(1));
-                int minutes = Integer.parseInt(timerMatcher.group(2));
-                int seconds = Integer.parseInt(timerMatcher.group(3));
-                long totalSeconds = 1 + seconds + 60 * minutes + 60 * 60 * hour;
+                int vidHour = Integer.parseInt(timerMatcher.group(1));
+                int vidMinutes = Integer.parseInt(timerMatcher.group(2));
+                int vidSeconds = Integer.parseInt(timerMatcher.group(3));
+                long totalSeconds = 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
 
                 Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
                 vidPathMatcher.find();
 
                 String videoName = vidPathMatcher.group(1);
                 String gameName = vidPathMatcher.group(2);
-                String fileExt = vidPathMatcher.group(10);
+                // String fileExt = vidPathMatcher.group(10);
                 String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
                 executeCommand("rm -rf " + processedPath + "; mkdir -p " + processedPath);
 
+                LocalDateTime timePoint = LocalDateTime.of(
+                        Integer.parseInt(vidPathMatcher.group(3)),
+                        Integer.parseInt(vidPathMatcher.group(4)),
+                        Integer.parseInt(vidPathMatcher.group(5)),
+                        Integer.parseInt(vidPathMatcher.group(6)),
+                        Integer.parseInt(vidPathMatcher.group(7)),
+                        Integer.parseInt(vidPathMatcher.group(8))
+                );
+
+                long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
+                ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
+
                 long clipCount = Math.floorDiv(totalSeconds, PER_CLIP_DURATION_SEC) + 1;
-                StringBuilder splitCommand = new StringBuilder("ffmpeg -i " + parsedVidPath);
                 for (int i = 0; i < clipCount; i++) {
                     long startPos = i * PER_CLIP_DURATION_SEC;
                     String endTimeStr = i == clipCount - 1 ? "" : "-t " + PER_CLIP_DURATION_SEC + " ";
-                    splitCommand.append(" -ss " + startPos + " -codec copy " + endTimeStr + processedPath + "part" + (i + 1) + "." + fileExt);
+                    String processedClipPath = processedPath + "part" + (i + 1) + ".flv";
+                    processedVideo.addClipPath(processedClipPath);
+                    executeCommand("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 23 " + endTimeStr + processedClipPath);
                 }
 
-                executeCommand(splitCommand.toString());
+                String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
+                processedVideo.setOriginalVideoPath(processedOriginalVideoPath);
+                executeCommand("mv " + parsedVidPath + " " + processedOriginalVideoPath);
 
-                executeCommand("mv " + parsedVidPath + " " + parsedVidPath + ".done." + clipCount);
-                System.out.println(gameName + " total seconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+                processedVideos.put(gameName, processedVideo);
+
+                System.out.println(gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
             });
         } catch (Exception e) {
             e.printStackTrace();
