@@ -58,6 +58,9 @@ public class BilibiliManageServer extends NanoHTTPD {
                     }
 
                     if (null == responseLine || null == commandSocket) {
+                        commandSocket = null;
+                        commandOut = null;
+                        commandIn = null;
                         commandSocket = new Socket("192.168.1.123", 12345);
                         commandOut = new DataOutputStream(commandSocket.getOutputStream());
                         commandIn = new BufferedReader(new InputStreamReader(commandSocket.getInputStream()));
@@ -375,6 +378,10 @@ public class BilibiliManageServer extends NanoHTTPD {
     }
 
     private boolean processVideos() {
+        if (null == commandOut) {
+            return false;
+        }
+
         try {
             String replaceSpace = "\\s";
             pendingProcessVids(false).forEach(vidPath -> {
