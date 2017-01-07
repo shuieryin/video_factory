@@ -5,6 +5,7 @@ import org.apache.xerces.impl.dv.util.Base64;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,18 +34,68 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static final int PER_CLIP_DURATION_SEC = 900;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private Runtime rt = Runtime.getRuntime();
+    private Socket commandSocket;
+    private DataOutputStream commandOut;
+    private BufferedReader commandIn;
+    private boolean isSystemTurningOff = false;
+    private static String eol = System.getProperty("line.separator");
+    private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
 
     BilibiliManageServer() throws IOException {
         super(4567);
 
+        new Thread(() -> {
+            for (; ; ) {
+                try {
+                    String responseLine = "";
+                    while (null != commandIn && null != (responseLine = commandIn.readLine()) && !"done".equals(responseLine)) {
+                        System.out.println(responseLine);
+                    }
+
+                    if (isSystemTurningOff) {
+                        System.out.println("socket control thread closed");
+                        break;
+                    }
+
+                    if (null == responseLine || null == commandSocket) {
+                        commandSocket = new Socket("192.168.1.123", 12345);
+                        commandOut = new DataOutputStream(commandSocket.getOutputStream());
+                        commandIn = new BufferedReader(new InputStreamReader(commandSocket.getInputStream()));
+                        System.out.println("socket connected");
+                    }
+                } catch (IOException e) {
+                    String errorMsg = e.getMessage();
+                    if ("Connection refused".equals(errorMsg) || "Connection reset".equals(errorMsg) || "No route to host (Host unreachable)".equals(errorMsg)) {
+                        int seconds = 5;
+                        System.out.println("reconnecting socket in " + seconds + " second(s)");
+                        try {
+                            TimeUnit.SECONDS.sleep(seconds);
+                        } catch (InterruptedException e1) {
+                            e1.printStackTrace();
+                        }
+                    } else {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+
         rt.addShutdownHook(new Thread(() -> {
             try {
                 System.out.println("closing...");
+                isSystemTurningOff = true;
+                if (null != commandOut) {
+                    commandOut.writeUTF("close" + eol);
+                    commandOut.flush();
+
+                    System.out.println(commandIn.readLine());
+                }
                 for (BilibiliManager bm : bilibiliManagerMaps.values()) {
                     bm.close();
                 }
                 executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox')");
                 FileUtils.forceDelete(new File(driverPath));
+                System.out.println("turned off");
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -93,7 +144,7 @@ public class BilibiliManageServer extends NanoHTTPD {
 
         try {
             Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
-            Runtime.getRuntime().exec(new String[]{"bash", "-c", "chmod 755 " + driverPath});
+            executeCommand("chmod 755 " + driverPath);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -189,17 +240,28 @@ public class BilibiliManageServer extends NanoHTTPD {
         return newFixedLengthResponse(ReturnContent);
     }
 
+    private void executeCommandRemotely(String command) {
+        try {
+            commandOut.writeUTF(command + eol);
+            commandOut.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private String executeCommand(String command) {
         StringBuilder output = new StringBuilder();
 
         try {
             System.out.println("executing command: [" + command + "]");
             String[] cmd = {
-                    "/bin/sh",
+                    "/bin/bash",
                     "-c",
                     command
             };
             Process proc = rt.exec(cmd);
+
+//            proc.waitFor();
 
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
@@ -272,10 +334,15 @@ public class BilibiliManageServer extends NanoHTTPD {
     }
 
     void handleUserInput(String userInput) {
+        Matcher inputMatcher = userInputPattern.matcher(userInput);
+        inputMatcher.find();
+
+        String command = inputMatcher.group(1);
+        String args = inputMatcher.group(2);
         try {
             String testUid = "testUid";
             BilibiliManager bm = bilibiliManagerMaps.get(testUid);
-            switch (userInput) {
+            switch (command) {
                 case "ibs":
                     if (null == bm) {
                         bm = new BilibiliManager(testUid);
@@ -296,6 +363,10 @@ public class BilibiliManageServer extends NanoHTTPD {
                     testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part3.flv");
                     pendingUploadVids.put("The Witcher 3 2016.12.22 - 22.06.57.01", testProcessedVideo);
                     System.out.println(bm.uploadVideos(pendingUploadVids));
+                    break;
+                case "cmd":
+                    System.out.println("cmd: " + args);
+                    executeCommandRemotely(args + eol);
                     break;
             }
         } catch (Exception e) {
@@ -344,7 +415,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     String endTimeStr = i == clipCount - 1 ? "" : "-t " + PER_CLIP_DURATION_SEC + " ";
                     String processedClipPath = processedPath + "part" + (i + 1) + ".flv";
                     processedVideo.addClipPath(processedClipPath);
-                    executeCommand("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 23 " + endTimeStr + processedClipPath);
+                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 15 " + endTimeStr + processedClipPath);
                 }
 
                 String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
