@@ -23,13 +23,17 @@ import java.util.stream.Stream;
 
 public class BilibiliManageServer extends NanoHTTPD {
 
+    // TODO check what is uploading and show uploading video list
+
     private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
     private Map<String, BilibiliManager> bilibiliManagerMaps = new HashMap<>();
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
-    private static Pattern vidPathPattern = Pattern.compile("/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)");
+    private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
+    private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr);
+    private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)");
     private ScheduledFuture<?> processVideoScheduler;
     private static final int PER_CLIP_DURATION_SEC = 900;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
@@ -41,6 +45,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static String eol = System.getProperty("line.separator");
     private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
     private boolean isCommandDone = false;
+    private static final String replaceSpace = "\\s";
 
     BilibiliManageServer() throws IOException {
         super(4567);
@@ -126,9 +131,11 @@ public class BilibiliManageServer extends NanoHTTPD {
 
                     long now = Calendar.getInstance().getTimeInMillis();
                     for (BilibiliManager bm : bilibiliManagerMaps.values()) {
+                        //noinspection StatementWithEmptyBody
                         if (bm.expireTime() < now) {
-                            bm.close();
-                            bilibiliManagerMaps.remove(bm.uid());
+                            /* temp never close */
+//                            bm.close();
+//                            bilibiliManagerMaps.remove(bm.uid());
                         }
                     }
                 },
@@ -161,6 +168,37 @@ public class BilibiliManageServer extends NanoHTTPD {
         }
 
         System.setProperty("webdriver.gecko.driver", driverPath);
+
+        List<String> pendingUploadVids = pendingProcessVids(true);
+
+        for (String pendingUploadVid : pendingUploadVids) {
+            Matcher vidPathMatcher = processedVidPathPattern.matcher(pendingUploadVid);
+            vidPathMatcher.find();
+            LocalDateTime timePoint = LocalDateTime.of(
+                    Integer.parseInt(vidPathMatcher.group(3)),
+                    Integer.parseInt(vidPathMatcher.group(4)),
+                    Integer.parseInt(vidPathMatcher.group(5)),
+                    Integer.parseInt(vidPathMatcher.group(6)),
+                    Integer.parseInt(vidPathMatcher.group(7)),
+                    Integer.parseInt(vidPathMatcher.group(8))
+            );
+
+            String videoName = vidPathMatcher.group(1);
+            String gameName = vidPathMatcher.group(2);
+            int clipCount = Integer.parseInt(vidPathMatcher.group(11));
+
+
+            String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
+            long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
+            ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
+
+            String uploadRootPath = processedPath.replaceAll("\\\\", "");
+            for (int i = 0; i < clipCount; i++) {
+                processedVideo.addClipPath(uploadRootPath + "part" + (i + 1) + ".flv");
+            }
+
+            processedVideos.put(gameName, processedVideo);
+        }
 
         System.out.println("\nRunning! Point your browsers to http://localhost:4567/ \n");
     }
@@ -257,7 +295,7 @@ public class BilibiliManageServer extends NanoHTTPD {
             commandOut.writeUTF(command + eol);
             commandOut.flush();
 
-            while(!isCommandDone) {
+            while (!isCommandDone) {
                 TimeUnit.SECONDS.sleep(1);
             }
             isCommandDone = false;
@@ -397,7 +435,6 @@ public class BilibiliManageServer extends NanoHTTPD {
         }
 
         try {
-            String replaceSpace = "\\s";
             pendingProcessVids(false).forEach(vidPath -> {
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
                 String timeOutput = executeCommand("ffmpeg -i " + parsedVidPath + " 2>&1 | grep Duration | grep -oP \"^\\s*Duration:\\s*\\K(\\S+),\" | cut -c 1-11");
@@ -435,7 +472,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     long startPos = i * PER_CLIP_DURATION_SEC;
                     String endTimeStr = i == clipCount - 1 ? "" : "-t " + PER_CLIP_DURATION_SEC + " ";
                     String processedClipPath = processedPath + "part" + (i + 1) + ".flv";
-                    processedVideo.addClipPath(processedClipPath);
+                    processedVideo.addClipPath(processedClipPath.replaceAll("\\\\", ""));
                     executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 23 -r 60 " + endTimeStr + processedClipPath);
                 }
 
