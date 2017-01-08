@@ -40,6 +40,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private boolean isSystemTurningOff = false;
     private static String eol = System.getProperty("line.separator");
     private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
+    private boolean isCommandDone = false;
 
     BilibiliManageServer() throws IOException {
         super(4567);
@@ -52,6 +53,10 @@ public class BilibiliManageServer extends NanoHTTPD {
                         System.out.println(responseLine);
                     }
 
+                    if ("done".equals(responseLine)) {
+                        isCommandDone = true;
+                    }
+
                     if (isSystemTurningOff) {
                         System.out.println("socket control thread closed");
                         break;
@@ -61,14 +66,17 @@ public class BilibiliManageServer extends NanoHTTPD {
                         commandSocket = null;
                         commandOut = null;
                         commandIn = null;
-                        commandSocket = new Socket("192.168.1.123", 12345);
+                        commandSocket = new Socket("localhost", 12345); // 192.168.1.123
                         commandOut = new DataOutputStream(commandSocket.getOutputStream());
                         commandIn = new BufferedReader(new InputStreamReader(commandSocket.getInputStream()));
                         System.out.println("socket connected");
                     }
                 } catch (IOException e) {
                     String errorMsg = e.getMessage();
-                    if ("Connection refused".equals(errorMsg) || "Connection reset".equals(errorMsg) || "No route to host (Host unreachable)".equals(errorMsg)) {
+                    if ("Connection refused".equals(errorMsg)
+                            || "Connection reset".equals(errorMsg)
+                            || "No route to host (Host unreachable)".equals(errorMsg)
+                            || "Connection refused (Connection refused)".equals(errorMsg)) {
                         int seconds = 5;
                         System.out.println("reconnecting socket in " + seconds + " second(s)");
                         try {
@@ -96,7 +104,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                 for (BilibiliManager bm : bilibiliManagerMaps.values()) {
                     bm.close();
                 }
-                executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox')");
+                executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox|ffmpeg')");
                 FileUtils.forceDelete(new File(driverPath));
                 System.out.println("turned off");
             } catch (IOException e) {
@@ -244,10 +252,16 @@ public class BilibiliManageServer extends NanoHTTPD {
     }
 
     private void executeCommandRemotely(String command) {
+        System.out.println("executing command remotely: " + command);
         try {
             commandOut.writeUTF(command + eol);
             commandOut.flush();
-        } catch (IOException e) {
+
+            while(!isCommandDone) {
+                TimeUnit.SECONDS.sleep(1);
+            }
+            isCommandDone = false;
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -422,7 +436,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     String endTimeStr = i == clipCount - 1 ? "" : "-t " + PER_CLIP_DURATION_SEC + " ";
                     String processedClipPath = processedPath + "part" + (i + 1) + ".flv";
                     processedVideo.addClipPath(processedClipPath);
-                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 15 " + endTimeStr + processedClipPath);
+                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 23 -r 60 " + endTimeStr + processedClipPath);
                 }
 
                 String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
