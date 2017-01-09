@@ -52,7 +52,7 @@ class BilibiliManager {
                     for (String targetUploadClipPath : processedVideo.clipPaths()) {
                         WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
                         uploadInput.sendKeys(targetUploadClipPath);
-                        TimeUnit.SECONDS.sleep(1);
+                        TimeUnit.SECONDS.sleep(3);
                     }
 
                     WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
@@ -88,7 +88,10 @@ class BilibiliManager {
                     WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
                     submitButton.click();
 
-                    WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"http://member.bilibili.com/v/video/submit.html\"]")));
+                    WebElement submitMoreButton = driver.findElement(By.cssSelector("a[href=\"http://member.bilibili.com/v/video/submit.html\"]"));
+                    while (!submitMoreButton.isDisplayed()) {
+                        TimeUnit.SECONDS.sleep(10);
+                    }
 
                     processedVideo.uploadDone();
 

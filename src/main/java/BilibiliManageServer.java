@@ -100,6 +100,10 @@ public class BilibiliManageServer extends NanoHTTPD {
         rt.addShutdownHook(new Thread(() -> {
             try {
                 System.out.println("closing...");
+                if (null != uploadThread && uploadThread.isAlive()) {
+                    //noinspection deprecation
+                    uploadThread.stop();
+                }
                 isSystemTurningOff = true;
                 if (null != commandOut) {
                     commandOut.writeUTF("close" + eol);
