@@ -143,6 +143,10 @@ public class BilibiliManageServer extends NanoHTTPD {
 //                            bilibiliManagerMaps.remove(bm.uid());
                         }
                     }
+
+                    if (Thread.State.TERMINATED == uploadThread.getState()) {
+                        uploadThread = null;
+                    }
                 },
                 10,
                 60 * 5,
@@ -278,12 +282,12 @@ public class BilibiliManageServer extends NanoHTTPD {
                     break;
                 case "upload_vids":
                     String status;
-                    if (!bm.isLoggedOnForUpload()) {
-                        status = "please_login_bilibili";
+                    if (null != uploadThread && uploadThread.isAlive()) {
+                        status = "existing_video_being_uploaded";
                     } else if (processedVideos.isEmpty()) {
                         status = "no_processed_vids";
-                    } else if (null != uploadThread && uploadThread.isAlive()) {
-                        status = "existing_video_being_uploaded";
+                    } else if (!bm.isLoggedOnForUpload()) {
+                        status = "please_login_bilibili";
                     } else {
                         status = "bilibili_upload_started";
                         uploadThread = bm.uploadVideos(processedVideos);
