@@ -37,63 +37,71 @@ class BilibiliManager {
         wait = new WebDriverWait(driver, 10);
     }
 
-    private boolean isLoggedOnForUpload() {
+    boolean isLoggedOnForUpload() {
         driver.navigate().to(UPLOAD_URL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
 
         return driver.findElements(By.className("home-hint")).size() > 0;
     }
 
-    String uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
-        if (!isLoggedOnForUpload()) {
-            return "please_login_bilibili";
-        }
+    Thread uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
+        Thread uploadThread = new Thread(() -> {
+            try {
+                for (ProcessedVideo processedVideo : processedVideos.values()) {
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
+                    for (String targetUploadClipPath : processedVideo.clipPaths()) {
+                        WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
+                        uploadInput.sendKeys(targetUploadClipPath);
+                        TimeUnit.SECONDS.sleep(1);
+                    }
 
-        if (processedVideos.isEmpty()) {
-            return "no_processed_vids";
-        }
+                    WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
+                    selfMadeRadio.click();
 
-        for (ProcessedVideo processedVideo : processedVideos.values()) {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
-            for (String targetUploadClipPath : processedVideo.clipPaths()) {
-                WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
-                uploadInput.sendKeys(targetUploadClipPath);
-            }
+                    WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
 
-            WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
-            selfMadeRadio.click();
+                    List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
 
-            WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+                    for (WebElement curElement : categoryElements) {
+                        String innerHTML = curElement.getAttribute("innerHTML");
+                        if ("Gaming".equals(innerHTML)) {
+                            curElement.click();
+                        }
 
-            List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
+                        if ("Stand-alone/Online Games".equals(innerHTML)) {
+                            curElement.findElement(By.xpath("..")).click();
+                            break;
+                        }
+                    }
 
-            for (WebElement curElement : categoryElements) {
-                String innerHTML = curElement.getAttribute("innerHTML");
-                if ("Gaming".equals(innerHTML)) {
-                    curElement.click();
+                    WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+                    titleField.clear();
+                    titleField.sendKeys(processedVideo.videoTitle());
+
+                    WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
+                    tagsField.sendKeys(processedVideo.gameTitle());
+                    tagsField.sendKeys(Keys.ENTER);
+
+                    WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
+                    descField.sendKeys(processedVideo.videoTitle());
+
+                    WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
+                    submitButton.click();
+
+                    WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"http://member.bilibili.com/v/video/submit.html\"]")));
+
+                    processedVideo.uploadDone();
+
+                    submitMoreButton.click();
                 }
-
-                if ("Stand-alone/Online Games".equals(innerHTML)) {
-                    curElement.findElement(By.xpath("..")).click();
-                    break;
-                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+        });
 
-            WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
-            titleField.clear();
-            titleField.sendKeys(processedVideo.videoTitle());
+        uploadThread.start();
 
-            WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
-            tagsField.sendKeys(processedVideo.gameTitle());
-            tagsField.sendKeys(Keys.ENTER);
-
-            WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
-            descField.sendKeys(processedVideo.videoTitle());
-
-            WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
-            submitButton.click();
-        }
-        return "bilibili_upload_started";
+        return uploadThread;
     }
 
     boolean tapLogon(String inputCaptcha) {
@@ -173,6 +181,7 @@ class BilibiliManager {
         expireTime = Calendar.getInstance().getTimeInMillis() + 1000 * 60 * 30;
     }
 
+    @SuppressWarnings("unused")
     String uid() {
         return uid;
     }
