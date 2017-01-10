@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 public class BilibiliManageServer extends NanoHTTPD {
 
     // TODO check what is uploading and show uploading video list
-
+    private static final String OUTPUT_FORMAT = "mp4";
     private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
@@ -35,7 +35,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr);
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)");
     private ScheduledFuture<?> processVideoScheduler;
-    private static final int PER_CLIP_DURATION_SEC = 500;
+    private static final int PER_CLIP_DURATION_SEC = 300;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
@@ -205,7 +205,7 @@ public class BilibiliManageServer extends NanoHTTPD {
             int clipCount = Integer.parseInt(vidPathMatcher.group(11));
             String uploadRootPath = processedPath.replaceAll("\\\\", "");
             for (int i = 0; i < clipCount; i++) {
-                processedVideo.addClipPath(uploadRootPath + "part" + (i + 1) + ".flv");
+                processedVideo.addClipPath(uploadRootPath + "part" + (i + 1) + "." + OUTPUT_FORMAT);
             }
 
             processedVideos.put(gameName, processedVideo);
@@ -483,10 +483,13 @@ public class BilibiliManageServer extends NanoHTTPD {
                 long clipCount = Math.floorDiv(totalSeconds, PER_CLIP_DURATION_SEC) + 1;
                 for (int i = 0; i < clipCount; i++) {
                     long startPos = i * PER_CLIP_DURATION_SEC;
-                    String endTimeStr = i == clipCount - 1 ? "" : "-t " + PER_CLIP_DURATION_SEC + " ";
-                    String processedClipPath = processedPath + "part" + (i + 1) + ".flv";
+                    String endTimeStr = i == clipCount - 1 ? "" : "-t " + (PER_CLIP_DURATION_SEC + 1) + " ";
+                    // String processedClipPath = processedPath + "part" + (i + 1) + "." + OUTPUT_FORMAT;
+                    String processedClipPath = processedPath + "part" + (i + 1) + "." + OUTPUT_FORMAT;
                     processedVideo.addClipPath(processedClipPath.replaceAll("\\\\", ""));
-                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 20 " + endTimeStr + processedClipPath); // -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -r 120
+                    // -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -r 120
+                    // "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 20 " + endTimeStr + processedClipPath
+                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec copy " + endTimeStr + processedClipPath);
                 }
 
                 String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
