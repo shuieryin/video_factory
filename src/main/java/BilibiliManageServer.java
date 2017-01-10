@@ -432,6 +432,17 @@ public class BilibiliManageServer extends NanoHTTPD {
                     System.out.println("cmd: " + args);
                     executeCommandRemotely(args + eol);
                     break;
+                case "uv":
+                    Map<String, ProcessedVideo> pendingUploadVids = new HashMap<>();
+                    ProcessedVideo testProcessedVideo = new ProcessedVideo(Calendar.getInstance().getTimeInMillis(), "The Witcher 3", "/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01");
+                    testProcessedVideo.setOriginalVideoPath("/Volumes/Anonymous/vids/pending_process/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01.mp4.done.3");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part1.mp4");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part2.mp4");
+                    testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part3.mp4");
+                    pendingUploadVids.put("The Witcher 3 2016.12.22 - 22.06.57.01", testProcessedVideo);
+                    bm.isLoggedOnForUpload();
+                    uploadThread = bm.uploadVideos(pendingUploadVids);
+                    break;
             }
         } catch (Exception e) {
             e.printStackTrace();
