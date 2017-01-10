@@ -28,7 +28,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
-    private Map<String, BilibiliManager> bilibiliManagerMaps = new HashMap<>();
+    private Map<String, BilibiliManager> bilibiliManagersMap = new HashMap<>();
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
@@ -111,7 +111,7 @@ public class BilibiliManageServer extends NanoHTTPD {
 
                     System.out.println(commandIn.readLine());
                 }
-                for (BilibiliManager bm : bilibiliManagerMaps.values()) {
+                for (BilibiliManager bm : bilibiliManagersMap.values()) {
                     bm.close();
                 }
                 executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox|ffmpeg')");
@@ -135,12 +135,12 @@ public class BilibiliManageServer extends NanoHTTPD {
                     }
 
                     long now = Calendar.getInstance().getTimeInMillis();
-                    for (BilibiliManager bm : bilibiliManagerMaps.values()) {
+                    for (BilibiliManager bm : bilibiliManagersMap.values()) {
                         //noinspection StatementWithEmptyBody
                         if (bm.expireTime() < now) {
                             /* temp never close */
 //                            bm.close();
-//                            bilibiliManagerMaps.remove(bm.uid());
+//                            bilibiliManagersMap.remove(bm.uid());
                         }
                     }
 
@@ -169,12 +169,8 @@ public class BilibiliManageServer extends NanoHTTPD {
 
         InputStream driverStream = classloader.getResourceAsStream(driverPath);
 
-        try {
-            Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
-            executeCommand("chmod 755 " + driverPath);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
+        executeCommand("chmod 755 " + driverPath);
 
         System.setProperty("webdriver.gecko.driver", driverPath);
 
@@ -238,7 +234,7 @@ public class BilibiliManageServer extends NanoHTTPD {
         try {
             String uid = getParams.get("uid").get(0);
 
-            BilibiliManager bm = bilibiliManagerMaps.get(uid);
+            BilibiliManager bm = bilibiliManagersMap.get(uid);
 
             JSONObject returnJSON = new JSONObject();
             returnJSON.put("uid", uid);
@@ -247,14 +243,14 @@ public class BilibiliManageServer extends NanoHTTPD {
                 case "init_browser_session":
                     if (null == bm) {
                         bm = new BilibiliManager(uid);
-                        bilibiliManagerMaps.put(uid, bm);
+                        bilibiliManagersMap.put(uid, bm);
                     } else {
                         bm.updateExpireTime();
                     }
                     break;
                 case "close_browser_session":
                     bm.close();
-                    bilibiliManagerMaps.remove(uid);
+                    bilibiliManagersMap.remove(uid);
                     break;
                 case "input_captcha":
                     String inputCaptcha = getParams.get("input_captcha").get(0);
@@ -419,12 +415,12 @@ public class BilibiliManageServer extends NanoHTTPD {
         String args = inputMatcher.group(2);
         try {
             String testUid = "testUid";
-            BilibiliManager bm = bilibiliManagerMaps.get(testUid);
+            BilibiliManager bm = bilibiliManagersMap.get(testUid);
             switch (command) {
                 case "ibs":
                     if (null == bm) {
                         bm = new BilibiliManager(testUid);
-                        bilibiliManagerMaps.put(testUid, bm);
+                        bilibiliManagersMap.put(testUid, bm);
                     } else {
                         bm.updateExpireTime();
                     }
