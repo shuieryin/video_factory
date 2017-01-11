@@ -35,7 +35,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr);
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)");
     private ScheduledFuture<?> processVideoScheduler;
-    private static final int PER_CLIP_DURATION_SEC = 500;
+    // private static final int PER_CLIP_DURATION_SEC = 500;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
@@ -46,12 +46,17 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
     private static boolean isCommandDone = false;
     private static final String replaceSpace = "\\s";
+    private Thread receiveSocketThread;
     private Thread uploadThread;
+    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50;
+    private static final int WIDTH_SIZE = 720;
+    private static final int CRF = 10;
+    private static Pattern filesizePattern = Pattern.compile("(\\d+)");
 
     BilibiliManageServer() throws IOException {
         super(4567);
 
-        new Thread(() -> {
+        receiveSocketThread = new Thread(() -> {
             for (; ; ) {
                 try {
                     String responseLine = "";
@@ -65,6 +70,7 @@ public class BilibiliManageServer extends NanoHTTPD {
 
                     if (isSystemTurningOff) {
                         System.out.println("socket control thread closed");
+                        this.stop();
                         break;
                     }
 
@@ -95,7 +101,8 @@ public class BilibiliManageServer extends NanoHTTPD {
                     }
                 }
             }
-        }).start();
+        });
+        receiveSocketThread.start();
 
         rt.addShutdownHook(new Thread(() -> {
             try {
@@ -105,8 +112,10 @@ public class BilibiliManageServer extends NanoHTTPD {
                     uploadThread.stop();
                 }
                 isSystemTurningOff = true;
-                if (null != commandOut) {
-                    executeCommandRemotely("close", false);
+                if (receiveSocketThread.isAlive()) {
+                    //noinspection deprecation
+                    receiveSocketThread.stop();
+//                    executeCommandRemotely("close", false);
                 }
                 for (BilibiliManager bm : bilibiliManagersMap.values()) {
                     bm.close();
@@ -305,11 +314,10 @@ public class BilibiliManageServer extends NanoHTTPD {
         return newFixedLengthResponse(ReturnContent);
     }
 
-    private static void executeCommandRemotely(String command, boolean isEncode) {
+    private static void executeCommandRemotely(String command, @SuppressWarnings("SameParameterValue") boolean isEncode) {
         System.out.println("executing command remotely: [" + command + "]");
         try {
             String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
-            System.out.println("Encoded command: [" + encodedCommand + "]");
             commandOut.writeUTF(encodedCommand); //  + eol
             commandOut.flush();
 
@@ -454,16 +462,9 @@ public class BilibiliManageServer extends NanoHTTPD {
         }
 
         try {
-            pendingProcessVids(false).forEach(vidPath -> {
+            for (String vidPath : pendingProcessVids(false)) {
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
-                String timeOutput = executeCommand("ffmpeg -i " + parsedVidPath + " 2>&1 | grep Duration | grep -oP \"^\\s*Duration:\\s*\\K(\\S+),\" | cut -c 1-11");
-
-                Matcher timerMatcher = timePattern.matcher(timeOutput);
-                timerMatcher.find();
-                int vidHour = Integer.parseInt(timerMatcher.group(1));
-                int vidMinutes = Integer.parseInt(timerMatcher.group(2));
-                int vidSeconds = Integer.parseInt(timerMatcher.group(3));
-                long totalSeconds = 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
+                long totalSeconds = videoDuration(parsedVidPath);
 
                 Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
                 vidPathMatcher.find();
@@ -486,18 +487,26 @@ public class BilibiliManageServer extends NanoHTTPD {
                 long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
                 ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
 
-                long clipCount = Math.floorDiv(totalSeconds, PER_CLIP_DURATION_SEC) + 1;
-                for (int i = 0; i < clipCount; i++) {
-                    long startPos = i * PER_CLIP_DURATION_SEC;
-                    String endTimeStr = i == clipCount - 1 ? "" : "-t " + (PER_CLIP_DURATION_SEC + 1) + " ";
-                    // String processedClipPath = processedPath + "part" + (i + 1) + "." + OUTPUT_FORMAT;
-                    String processedClipPath = processedPath + "part" + (i + 1) + "." + OUTPUT_FORMAT;
-                    processedVideo.addClipPath(processedClipPath.replaceAll("\\\\", ""));
-                    // -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -r 120
-                    // String command = "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec copy " + endTimeStr + processedClipPath; // original
-                    String command = "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -codec:v libx264 -ar 44100 -crf 15 " + endTimeStr + processedClipPath;
+                long clipCount = 0;
+                long startPos = 0;
+                String lastProcessedClipPath;
+                do {
+                    lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
+                    String command = "ffmpeg -i " + parsedVidPath
+                            + " -ss " + (startPos - 2)
+                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
+                            + " -codec:v libx264"
+                            + " -ar 44100"
+                            + " -crf " + CRF
+                            + " -fs " + LIMIT_SIZE_BYTES
+                            + " " + lastProcessedClipPath;
                     executeCommandRemotely(command, true);
-                }
+                    startPos += videoDuration(lastProcessedClipPath);
+                    String rawFileSize = executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
+                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
+                    fileSizeMatcher.find();
+                    System.out.println("startPos: " + startPos);
+                } while (startPos < totalSeconds);
 
                 String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
                 processedVideo.setOriginalVideoPath(processedOriginalVideoPath);
@@ -506,11 +515,22 @@ public class BilibiliManageServer extends NanoHTTPD {
                 processedVideos.put(gameName, processedVideo);
 
                 System.out.println(gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
-            });
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         return true;
+    }
+
+    private long videoDuration(String vidPath) {
+        String timeOutput = executeCommand("ffmpeg -i " + vidPath + " 2>&1 | grep Duration | grep -oP \"^\\s*Duration:\\s*\\K(\\S+),\" | cut -c 1-11");
+
+        Matcher timerMatcher = timePattern.matcher(timeOutput);
+        timerMatcher.find();
+        int vidHour = Integer.parseInt(timerMatcher.group(1));
+        int vidMinutes = Integer.parseInt(timerMatcher.group(2));
+        int vidSeconds = Integer.parseInt(timerMatcher.group(3));
+        return 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
     }
 }
