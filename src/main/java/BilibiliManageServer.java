@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 public class BilibiliManageServer extends NanoHTTPD {
 
     // TODO check what is uploading and show uploading video list
-    private static final String OUTPUT_FORMAT = "mp4";
+    private static final String OUTPUT_FORMAT = "flv";
     private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
@@ -35,14 +35,14 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr);
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)");
     private ScheduledFuture<?> processVideoScheduler;
-    private static final int PER_CLIP_DURATION_SEC = 300;
+    private static final int PER_CLIP_DURATION_SEC = 500;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
     private static DataOutputStream commandOut;
     private BufferedReader commandIn;
     private boolean isSystemTurningOff = false;
-    private static String eol = System.getProperty("line.separator");
+    // private static String eol = System.getProperty("line.separator");
     private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
     private static boolean isCommandDone = false;
     private static final String replaceSpace = "\\s";
@@ -56,7 +56,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                 try {
                     String responseLine = "";
                     while (null != commandIn && null != (responseLine = commandIn.readLine()) && !"done".equals(responseLine)) {
-                        System.out.println(responseLine);
+                        System.out.println(new String(Base64.decode(responseLine)));
                     }
 
                     if ("done".equals(responseLine)) {
@@ -106,10 +106,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                 }
                 isSystemTurningOff = true;
                 if (null != commandOut) {
-                    commandOut.writeUTF("close" + eol);
-                    commandOut.flush();
-
-                    System.out.println(commandIn.readLine());
+                    executeCommandRemotely("close", false);
                 }
                 for (BilibiliManager bm : bilibiliManagersMap.values()) {
                     bm.close();
@@ -308,10 +305,12 @@ public class BilibiliManageServer extends NanoHTTPD {
         return newFixedLengthResponse(ReturnContent);
     }
 
-    private static void executeCommandRemotely(String command) {
-        System.out.println("executing command remotely: " + command);
+    private static void executeCommandRemotely(String command, boolean isEncode) {
+        System.out.println("executing command remotely: [" + command + "]");
         try {
-            commandOut.writeUTF(command + eol);
+            String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
+            System.out.println("Encoded command: [" + encodedCommand + "]");
+            commandOut.writeUTF(encodedCommand); //  + eol
             commandOut.flush();
 
             while (!isCommandDone) {
@@ -430,7 +429,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     break;
                 case "cmd":
                     System.out.println("cmd: " + args);
-                    executeCommandRemotely(args + eol);
+                    executeCommandRemotely(args, true);
                     break;
                 case "uv":
                     Map<String, ProcessedVideo> pendingUploadVids = new HashMap<>();
@@ -495,8 +494,9 @@ public class BilibiliManageServer extends NanoHTTPD {
                     String processedClipPath = processedPath + "part" + (i + 1) + "." + OUTPUT_FORMAT;
                     processedVideo.addClipPath(processedClipPath.replaceAll("\\\\", ""));
                     // -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -r 120
-                    // "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec:v libx264 -ar 44100 -crf 20 " + endTimeStr + processedClipPath
-                    executeCommandRemotely("ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec copy " + endTimeStr + processedClipPath);
+                    // String command = "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -codec copy " + endTimeStr + processedClipPath; // original
+                    String command = "ffmpeg -i " + parsedVidPath + " -ss " + startPos + " -vf scale=w=-1:h=720:force_original_aspect_ratio=decrease -codec:v libx264 -ar 44100 -crf 15 " + endTimeStr + processedClipPath;
+                    executeCommandRemotely(command, true);
                 }
 
                 String processedOriginalVideoPath = parsedVidPath + ".done." + clipCount;
