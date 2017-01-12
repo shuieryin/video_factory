@@ -32,8 +32,8 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
-    private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr);
-    private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)");
+    private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
+    private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private ScheduledFuture<?> processVideoScheduler;
     // private static final int PER_CLIP_DURATION_SEC = 500;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
@@ -50,7 +50,7 @@ public class BilibiliManageServer extends NanoHTTPD {
     private Thread uploadThread;
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50;
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 10;
+    private static final int CRF = 13;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
 
     BilibiliManageServer() throws IOException {
@@ -115,7 +115,6 @@ public class BilibiliManageServer extends NanoHTTPD {
                 if (receiveSocketThread.isAlive()) {
                     //noinspection deprecation
                     receiveSocketThread.stop();
-//                    executeCommandRemotely("close", false);
                 }
                 for (BilibiliManager bm : bilibiliManagersMap.values()) {
                     bm.close();
@@ -387,9 +386,8 @@ public class BilibiliManageServer extends NanoHTTPD {
                         }
 
                         String vidPathStr = vidPath.toString();
-                        Matcher isDone = processedVidPattern.matcher(vidPathStr);
-                        boolean isMatch = isDone.find();
-                        if (isGetDones && isMatch || !isGetDones && !isMatch) {
+                        Matcher matcher = isGetDones ? processedVidPattern.matcher(vidPathStr) : vidPathPattern.matcher(vidPathStr);
+                        if (matcher.find()) {
                             vidsList.add(vidPathStr);
                         }
                     });
@@ -493,7 +491,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                 do {
                     lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -i " + parsedVidPath
-                            + " -ss " + (startPos - 2)
+                            + " -ss " + (startPos - 3)
                             + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -ar 44100"

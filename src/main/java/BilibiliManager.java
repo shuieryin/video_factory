@@ -34,7 +34,7 @@ class BilibiliManager {
         updateExpireTime();
 
         driver = new FirefoxDriver();
-        wait = new WebDriverWait(driver, 10);
+        wait = new WebDriverWait(driver, 100);
     }
 
     boolean isLoggedOnForUpload() {
@@ -47,6 +47,10 @@ class BilibiliManager {
     Thread uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
         Thread uploadThread = new Thread(() -> {
             try {
+                if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
+                    driver.navigate().to(UPLOAD_URL);
+                }
+
                 for (ProcessedVideo processedVideo : processedVideos.values()) {
                     wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
                     for (String targetUploadClipPath : processedVideo.clipPaths()) {
