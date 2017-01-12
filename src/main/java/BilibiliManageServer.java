@@ -121,6 +121,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                 }
                 isSystemTurningOff = true;
                 if (receiveSocketThread.isAlive()) {
+                    new Thread(() -> executeCommandRemotely("close", false)).start();
                     //noinspection deprecation
                     receiveSocketThread.stop();
                 }
@@ -322,7 +323,7 @@ public class BilibiliManageServer extends NanoHTTPD {
         return newFixedLengthResponse(ReturnContent);
     }
 
-    private static void executeCommandRemotely(String command, @SuppressWarnings("SameParameterValue") boolean isEncode) {
+    private static void executeCommandRemotely(String command, boolean isEncode) {
         System.out.println("executing command remotely: [" + command + "]");
         try {
             String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
@@ -428,7 +429,7 @@ public class BilibiliManageServer extends NanoHTTPD {
         String command = inputMatcher.group(1);
         String args = inputMatcher.group(2);
         try {
-            String testUid = "testUid";
+            String testUid = "ogD_CvtfTf1fGpNV-dVrbgQ9I76c";
             BilibiliManager bm = bilibiliManagersMap.get(testUid);
             switch (command) {
                 case "ibs":

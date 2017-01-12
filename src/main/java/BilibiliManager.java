@@ -252,7 +252,7 @@ class BilibiliManager {
         if (!GATEWAY_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
             while (driver.findElements(By.id("pwdTipStr")).size() < 1) {
                 driver.navigate().to(GATEWAY_URL);
-                TimeUnit.SECONDS.sleep(2);
+                TimeUnit.SECONDS.sleep(3);
             }
         }
 
@@ -267,6 +267,8 @@ class BilibiliManager {
             WebElement deviceManageButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("routeMgtMbtn")));
             deviceManageButton.click();
         }
+
+        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 0);");
 
         WebElement deviceTable = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngRCon")));
         Elements deviceInfos;
