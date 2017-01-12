@@ -3,9 +3,13 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.xerces.impl.dv.util.Base64;
 import org.json.JSONObject;
+import org.openqa.selenium.Keys;
 
+import java.awt.*;
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +17,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -28,6 +33,8 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static String OS = System.getProperty("os.name").toLowerCase();
     private static final String DRIVER_NAME = "geckodriver";
     private String driverPath;
+    @SuppressWarnings({"unused", "FieldCanBeLocal"})
+    private static CharSequence ControlKey;
     private Map<String, BilibiliManager> bilibiliManagersMap = new HashMap<>();
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
@@ -50,8 +57,9 @@ public class BilibiliManageServer extends NanoHTTPD {
     private Thread uploadThread;
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50;
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 13;
+    private static final int CRF = 15;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
+    static ScheduledExecutorService scheduler;
 
     BilibiliManageServer() throws IOException {
         super(4567);
@@ -127,7 +135,7 @@ public class BilibiliManageServer extends NanoHTTPD {
             }
         }));
 
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        scheduler = Executors.newScheduledThreadPool(10);
 
         scheduler.scheduleAtFixedRate(
                 () -> {
@@ -151,6 +159,14 @@ public class BilibiliManageServer extends NanoHTTPD {
 
                     if (Thread.State.TERMINATED == uploadThread.getState()) {
                         uploadThread = null;
+                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
+                            try {
+                                String autoStartUploadStatus = uploadVids(bm);
+                                System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 },
                 10,
@@ -164,10 +180,13 @@ public class BilibiliManageServer extends NanoHTTPD {
 
         if (OS.contains("win")) {
             driverPath = DRIVER_NAME + ".exe";
+            ControlKey = Keys.CONTROL;
         } else if (OS.contains("mac")) {
             driverPath = "mac" + DRIVER_NAME;
+            ControlKey = Keys.COMMAND;
         } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
             driverPath = "linux" + DRIVER_NAME;
+            ControlKey = Keys.CONTROL;
         } else {
             throw (new RuntimeException("Your OS is not supported!! [" + OS + "]"));
         }
@@ -212,7 +231,9 @@ public class BilibiliManageServer extends NanoHTTPD {
             processedVideos.put(gameName, processedVideo);
         }
 
-        System.out.println("\nRunning! Point your browsers to http://localhost:4567/ \n");
+        handleUserInput("ibs");
+
+        System.out.println("\nRunning!\n");
     }
 
     // http://localhost:4567/bilibili_manager?uid=h121234hjk&event=input_credentials&username=shuieryin&password=46127836471823
@@ -282,19 +303,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     returnJSON.put("vids_list", pendingProcessVids(true));
                     break;
                 case "upload_vids":
-                    String status;
-                    if (null != uploadThread && uploadThread.isAlive()) {
-                        status = "existing_video_being_uploaded";
-                    } else if (processedVideos.isEmpty()) {
-                        status = "no_processed_vids";
-                    } else if (!bm.isLoggedOnForUpload()) {
-                        status = "please_login_bilibili";
-                    } else {
-                        status = "bilibili_upload_started";
-                        uploadThread = bm.uploadVideos(processedVideos);
-                    }
-
-                    returnJSON.put("status", status);
+                    returnJSON.put("status", uploadVids(bm));
                     break;
             }
 
@@ -448,6 +457,11 @@ public class BilibiliManageServer extends NanoHTTPD {
                     bm.isLoggedOnForUpload();
                     uploadThread = bm.uploadVideos(pendingUploadVids);
                     break;
+                case "xs":
+                    bm.balanceUploadSpeed();
+                    break;
+                case "tc":
+                    break;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -530,5 +544,40 @@ public class BilibiliManageServer extends NanoHTTPD {
         int vidMinutes = Integer.parseInt(timerMatcher.group(2));
         int vidSeconds = Integer.parseInt(timerMatcher.group(3));
         return 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
+    }
+
+    private String uploadVids(BilibiliManager bm) throws InterruptedException, AWTException, IOException {
+        String status;
+        if (null != uploadThread && uploadThread.isAlive()) {
+            status = "existing_video_being_uploaded";
+        } else if (processedVideos.isEmpty()) {
+            status = "no_processed_vids";
+        } else if (!bm.isLoggedOnForUpload()) {
+            status = "please_login_bilibili";
+        } else {
+            status = "bilibili_upload_started";
+            uploadThread = bm.uploadVideos(processedVideos);
+        }
+
+        return status;
+    }
+
+    static String retrieveData(@SuppressWarnings("SameParameterValue") String dataName) throws IOException {
+        URL obj = new URL("http://192.168.1.111:13579/hapi/common_server?data_name=" + dataName);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        con.setRequestMethod("GET");
+
+        int responseCode = con.getResponseCode();
+        System.out.println("Response Code : " + responseCode);
+        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        return response.toString();
     }
 }
