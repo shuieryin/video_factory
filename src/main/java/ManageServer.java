@@ -26,7 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-public class BilibiliManageServer extends NanoHTTPD {
+public class ManageServer extends NanoHTTPD {
 
     // TODO check what is uploading and show uploading video list
     private static final String OUTPUT_FORMAT = "flv";
@@ -60,8 +60,9 @@ public class BilibiliManageServer extends NanoHTTPD {
     private static final int CRF = 15;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     static ScheduledExecutorService scheduler;
+    private NetworkManager nm;
 
-    BilibiliManageServer() throws IOException {
+    ManageServer() throws IOException {
         super(4567);
 
         receiveSocketThread = new Thread(() -> {
@@ -233,6 +234,8 @@ public class BilibiliManageServer extends NanoHTTPD {
         }
 
         handleUserInput("ibs");
+
+        nm = new NetworkManager();
 
         System.out.println("\nRunning!\n");
     }
@@ -459,7 +462,7 @@ public class BilibiliManageServer extends NanoHTTPD {
                     uploadThread = bm.uploadVideos(pendingUploadVids);
                     break;
                 case "xs":
-                    bm.balanceUploadSpeed();
+                    nm.balanceUploadSpeed();
                     break;
                 case "tc":
                     break;

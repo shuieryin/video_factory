@@ -94,7 +94,7 @@ class ProcessedVideo {
     }
 
     void uploadDone() {
-        BilibiliManageServer.executeCommand("mv " + originalVideoPath + " " + originalVideoPath + ".uploaded");
+        ManageServer.executeCommand("mv " + originalVideoPath + " " + originalVideoPath + ".uploaded");
         isUploadDone = true;
     }
 }
