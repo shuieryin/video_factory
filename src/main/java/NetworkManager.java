@@ -88,6 +88,12 @@ class NetworkManager {
         long totalDownloadKiloBytes = 0;
 
         for (Element deviceInfo : deviceInfos) {
+            String deviceName = deviceInfo.previousSibling().childNode(0).attr("title");
+            if ("GlServer".equals(deviceName)) {
+                System.out.println("Skip GlServer");
+                continue;
+            }
+
             List<Node> childNodes = deviceInfo.childNodes();
 
             String uploadSpeedStr = childNodes.get(0).toString();
@@ -95,11 +101,6 @@ class NetworkManager {
 
             totalUploadKiloBytes += parseByte(uploadSpeedStr, totalUploadKiloBytes);
             totalDownloadKiloBytes += parseByte(downloadSpeedStr, totalDownloadKiloBytes);
-
-            String deviceName = deviceInfo.previousSibling().childNode(0).attr("title");
-            if ("GlServer".equals(deviceName)) {
-                System.out.println("this is gl server");
-            }
         }
 
         System.out.println("totalUploadKiloBytes: " + totalUploadKiloBytes);

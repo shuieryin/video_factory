@@ -177,7 +177,7 @@ public class ManageServer extends NanoHTTPD {
                         e.printStackTrace();
                     }
                 },
-                30,
+                60,
                 60 * 5,
                 TimeUnit.SECONDS
         );
