@@ -43,25 +43,36 @@ class NetworkManager {
         );
     }
 
-    void balanceUploadSpeed() throws InterruptedException, IOException {
-        if (!GATEWAY_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
+    private void reachDeviceInfoPage() throws InterruptedException, IOException {
+        if (driver.findElements(By.id("eptMngRCon")).size() < 1) {
             while (driver.findElements(By.id("pwdTipStr")).size() < 1) {
                 driver.navigate().to(GATEWAY_URL);
                 TimeUnit.SECONDS.sleep(3);
             }
-        }
 
-        if (driver.findElements(By.id("eptMngRCon")).size() < 1) {
             WebElement passwordField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("lgPwd")));
             TimeUnit.SECONDS.sleep(1);
-            passwordField.sendKeys(ManageServer.retrieveData("router_password"));
 
-            WebElement logonButton = driver.findElement(By.id("loginSub"));
-            logonButton.click();
+            do {
+                passwordField.sendKeys(ManageServer.retrieveData("router_password"));
 
-            WebElement deviceManageButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("routeMgtMbtn")));
-            deviceManageButton.click();
+                WebElement logonButton = driver.findElement(By.id("loginSub"));
+                logonButton.click();
+                TimeUnit.SECONDS.sleep(1);
+            } while (driver.findElements(By.id("loginError")).size() > 0);
+
+            WebElement deviceManageButton;
+            try {
+                deviceManageButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("routeMgtMbtn")));
+                deviceManageButton.click();
+            } catch (Exception e) {
+                reachDeviceInfoPage();
+            }
         }
+    }
+
+    void balanceUploadSpeed() throws InterruptedException, IOException {
+        reachDeviceInfoPage();
 
         ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 0);");
 
@@ -81,9 +92,6 @@ class NetworkManager {
 
             String uploadSpeedStr = childNodes.get(0).toString();
             String downloadSpeedStr = childNodes.get(1).toString();
-
-            System.out.println("uploadSpeedStr: " + uploadSpeedStr);
-            System.out.println("downloadSpeedStr: " + downloadSpeedStr);
 
             totalUploadKiloBytes += parseByte(uploadSpeedStr, totalUploadKiloBytes);
             totalDownloadKiloBytes += parseByte(downloadSpeedStr, totalDownloadKiloBytes);

@@ -141,37 +141,43 @@ public class ManageServer extends NanoHTTPD {
 
         scheduler.scheduleAtFixedRate(
                 () -> {
-                    if (null == processVideoScheduler || processVideoScheduler.isDone()) {
-                        processVideoScheduler = scheduler.schedule(
-                                this::processVideos,
-                                10,
-                                TimeUnit.SECONDS
-                        );
-                    }
+                    try {
+                        System.out.println("[" + LocalDateTime.now() + "] Start regular scheduler...");
+                        if (null == processVideoScheduler || processVideoScheduler.isDone()) {
+                            processVideoScheduler = scheduler.schedule(
+                                    this::processVideos,
+                                    10,
+                                    TimeUnit.SECONDS
+                            );
+                        }
 
-                    long now = Calendar.getInstance().getTimeInMillis();
-                    for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                        //noinspection StatementWithEmptyBody
-                        if (bm.expireTime() < now) {
+                        long now = Calendar.getInstance().getTimeInMillis();
+                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
+                            //noinspection StatementWithEmptyBody
+                            if (bm.expireTime() < now) {
                             /* temp never close */
 //                            bm.close();
 //                            bilibiliManagersMap.remove(bm.uid());
-                        }
-                    }
-
-                    if (Thread.State.TERMINATED == uploadThread.getState()) {
-                        uploadThread = null;
-                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                            try {
-                                String autoStartUploadStatus = uploadVids(bm);
-                                System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
-                            } catch (Exception e) {
-                                e.printStackTrace();
                             }
                         }
+
+                        if (null == uploadThread) {
+                            for (BilibiliManager bm : bilibiliManagersMap.values()) {
+                                String autoStartUploadStatus = uploadVids(bm);
+                                System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
+                            }
+                        }
+
+                        if (!uploadThread.isAlive()) {
+                            uploadThread = null;
+                        }
+
+                    } catch (Exception e) {
+                        System.out.println("Error in regular scheduler");
+                        e.printStackTrace();
                     }
                 },
-                10,
+                30,
                 60 * 5,
                 TimeUnit.SECONDS
         );
@@ -235,9 +241,9 @@ public class ManageServer extends NanoHTTPD {
 
         handleUserInput("ibs");
 
-        nm = new NetworkManager();
-
         System.out.println("\nRunning!\n");
+
+        nm = new NetworkManager();
     }
 
     // http://localhost:4567/bilibili_manager?uid=h121234hjk&event=input_credentials&username=shuieryin&password=46127836471823

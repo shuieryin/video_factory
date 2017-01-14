@@ -11,7 +11,6 @@ import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +22,8 @@ class BilibiliManager {
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
     private static long expireTime;
-    private static List<String> tabs;
-    private static final int BILIBILI_TAB = 0;
+//    private static List<String> tabs;
+//    private static final int BILIBILI_TAB = 0;
 
     private String uid;
     private WebDriver driver;
@@ -33,7 +32,7 @@ class BilibiliManager {
     BilibiliManager(String Uid) throws InterruptedException {
         this.uid = Uid;
 
-        System.out.println("launching firefox browser");
+        System.out.println("launching firefox browser for [" + Uid + "]");
 
         updateExpireTime();
 
@@ -41,14 +40,14 @@ class BilibiliManager {
         wait = new WebDriverWait(driver, 20);
         driver.navigate().to(LOGON_URL);
 
-        WebElement newLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"//www.bilibili.com/html/friends-links.html\"]")));
-        newLink.click();
+//        WebElement newLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"//www.bilibili.com/html/friends-links.html\"]")));
+//        newLink.click();
 
-        while ((tabs = new ArrayList<>(driver.getWindowHandles())).size() == 1) {
-            TimeUnit.MILLISECONDS.sleep(500);
-        }
-
-        driver.switchTo().window(tabs.get(BILIBILI_TAB));
+//        while ((tabs = new ArrayList<>(driver.getWindowHandles())).size() == 1) {
+//            TimeUnit.MILLISECONDS.sleep(500);
+//        }
+//
+//        driver.switchTo().window(tabs.get(BILIBILI_TAB));
     }
 
     boolean isLoggedOnForUpload() {
@@ -61,7 +60,7 @@ class BilibiliManager {
     Thread uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
         Thread uploadThread = new Thread(() -> {
             try {
-                driver.switchTo().window(tabs.get(BILIBILI_TAB));
+//                driver.switchTo().window(tabs.get(BILIBILI_TAB));
                 if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
                     driver.navigate().to(UPLOAD_URL);
                 }
@@ -138,7 +137,7 @@ class BilibiliManager {
     }
 
     boolean tapLogon(String inputCaptcha) {
-        driver.switchTo().window(tabs.get(BILIBILI_TAB));
+//        driver.switchTo().window(tabs.get(BILIBILI_TAB));
         WebElement vdCodeField = driver.findElement(By.id("vdCodeTxt"));
         vdCodeField.clear();
         vdCodeField.sendKeys(inputCaptcha);
@@ -149,11 +148,12 @@ class BilibiliManager {
 
         wait.until(ExpectedConditions.invisibilityOfElementLocated(By.id("vdCodeTxt")));
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
-        return driver.findElements(By.id("b_live")).size() > 0;
+
+        return isLoggedOnForUpload();
     }
 
     boolean inputCredentials(String username, String password, boolean isReopenUrl) throws IOException, InterruptedException, AWTException {
-        driver.switchTo().window(tabs.get(BILIBILI_TAB));
+//        driver.switchTo().window(tabs.get(BILIBILI_TAB));
         if (isReopenUrl) {
             driver.navigate().to(LOGON_URL);
         }
@@ -181,7 +181,7 @@ class BilibiliManager {
     }
 
     File captchaImage() throws IOException {
-        driver.switchTo().window(tabs.get(BILIBILI_TAB));
+//        driver.switchTo().window(tabs.get(BILIBILI_TAB));
         WebElement captchaImg = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("captchaImg")));
         driver.manage().timeouts().implicitlyWait(500L, TimeUnit.MICROSECONDS);
 
