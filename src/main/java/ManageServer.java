@@ -54,7 +54,7 @@ public class ManageServer extends NanoHTTPD {
     private Thread receiveSocketThread;
     private Thread uploadThread;
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50;
-    private static final int WIDTH_SIZE = 720;
+    // private static final int WIDTH_SIZE = 720;
     private static final int CRF = 10;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     static ScheduledExecutorService scheduler;
@@ -509,7 +509,7 @@ public class ManageServer extends NanoHTTPD {
                     lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -i " + parsedVidPath
                             + " -ss " + (startPos - 3)
-                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
+                            //+ " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -ar 44100"
                             + " -crf " + CRF
@@ -582,9 +582,5 @@ public class ManageServer extends NanoHTTPD {
         in.close();
 
         return response.toString();
-    }
-
-    static Map<String, ProcessedVideo> pendingProcessedVideos() {
-        return processedVideos;
     }
 }
