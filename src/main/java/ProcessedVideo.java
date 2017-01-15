@@ -25,11 +25,11 @@ class ProcessedVideo {
             md5.update(sha256.digest());
 
             String firstCap = "", firstLow = "";
-            int digestNumberTotal = 0;
+            long digestNumberTotal = 0;
             char[] digestedChars = Base64.encode(md5.digest()).toCharArray();
             for (char aChar : digestedChars) {
                 if (Character.isDigit(aChar)) {
-                    digestNumberTotal += Integer.parseInt(String.valueOf(aChar));
+                    digestNumberTotal += Long.parseLong(String.valueOf(aChar));
                 }
 
                 if (Character.isLetter(aChar)) {
@@ -43,10 +43,10 @@ class ProcessedVideo {
                 }
             }
 
-            int currentTotal = digestNumberTotal;
+            long currentTotal = digestNumberTotal;
             while (currentTotal >= 10) {
                 for (char digitChar : String.valueOf(currentTotal).toCharArray()) {
-                    currentTotal += Integer.parseInt(String.valueOf(digitChar));
+                    currentTotal += Long.parseLong(String.valueOf(digitChar));
                 }
             }
 

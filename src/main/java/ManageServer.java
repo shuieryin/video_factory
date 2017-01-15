@@ -42,7 +42,7 @@ public class ManageServer extends NanoHTTPD {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private ScheduledFuture<?> processVideoScheduler;
-    private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
+    private static Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
     private static DataOutputStream commandOut;
@@ -584,5 +584,9 @@ public class ManageServer extends NanoHTTPD {
         in.close();
 
         return response.toString();
+    }
+
+    static Map<String, ProcessedVideo> pendingProcessedVideos() {
+        return processedVideos;
     }
 }

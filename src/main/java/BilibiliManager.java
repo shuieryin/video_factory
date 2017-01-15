@@ -56,7 +56,8 @@ class BilibiliManager {
                     driver.navigate().to(UPLOAD_URL);
                 }
 
-                for (ProcessedVideo processedVideo : processedVideos.values()) {
+                for (String key : processedVideos.keySet()) {
+                    ProcessedVideo processedVideo = processedVideos.get(key);
                     wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
 
                     int uploadCount = 0;
@@ -125,6 +126,8 @@ class BilibiliManager {
                     processedVideo.uploadDone();
 
                     submitMoreButton.click();
+
+                    processedVideos.remove(key);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
