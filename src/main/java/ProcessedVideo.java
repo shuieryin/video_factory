@@ -14,7 +14,6 @@ class ProcessedVideo {
     private String uuid;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private long createTime;
-    private boolean isUploadDone = false;
 
     ProcessedVideo(long createTime, String gameTitle, String processedPath) {
         this.createTime = createTime;
@@ -89,12 +88,7 @@ class ProcessedVideo {
         return gameTitle;
     }
 
-    boolean isUploadDone() {
-        return isUploadDone;
-    }
-
     void uploadDone() {
         ManageServer.executeCommand("mv " + originalVideoPath + " " + originalVideoPath + ".uploaded");
-        isUploadDone = true;
     }
 }

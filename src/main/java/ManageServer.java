@@ -55,7 +55,7 @@ public class ManageServer extends NanoHTTPD {
     private Thread uploadThread;
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50;
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 15;
+    private static final int CRF = 10;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     static ScheduledExecutorService scheduler;
     private NetworkManager nm;
@@ -164,9 +164,7 @@ public class ManageServer extends NanoHTTPD {
                                 String autoStartUploadStatus = uploadVids(bm);
                                 System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
                             }
-                        }
-
-                        if (!uploadThread.isAlive()) {
+                        } else if (!uploadThread.isAlive()) {
                             uploadThread = null;
                         }
 
