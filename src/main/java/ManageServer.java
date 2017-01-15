@@ -141,12 +141,16 @@ public class ManageServer extends NanoHTTPD {
                 () -> {
                     try {
                         System.out.println("[" + LocalDateTime.now() + "] Start regular scheduler...");
-                        if (null == processVideoScheduler || processVideoScheduler.isDone()) {
+                        if (null == processVideoScheduler) {
                             processVideoScheduler = scheduler.schedule(
                                     this::processVideos,
                                     10,
                                     TimeUnit.SECONDS
                             );
+                        } else {
+                            if (processVideoScheduler.isDone()) {
+                                processVideoScheduler = null;
+                            }
                         }
 
                         long now = Calendar.getInstance().getTimeInMillis();
@@ -488,7 +492,7 @@ public class ManageServer extends NanoHTTPD {
                 String videoName = vidPathMatcher.group(1);
                 String gameName = vidPathMatcher.group(2);
                 String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
-                executeCommand("rm -rf " + processedPath + "; mkdir -p " + processedPath);
+                executeCommand("mkdir -p " + processedPath + "; rm -f " + processedPath + "*");
 
                 LocalDateTime timePoint = LocalDateTime.of(
                         Integer.parseInt(vidPathMatcher.group(3)),
@@ -515,6 +519,7 @@ public class ManageServer extends NanoHTTPD {
                             + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
                             + " " + lastProcessedClipPath;
+
                     executeCommandRemotely(command, true);
                     startPos += videoDuration(lastProcessedClipPath);
                     String rawFileSize = executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
