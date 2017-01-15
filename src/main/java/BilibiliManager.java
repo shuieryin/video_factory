@@ -49,12 +49,14 @@ class BilibiliManager {
         return driver.findElements(By.className("home-hint")).size() > 0;
     }
 
-    Thread uploadVideos(Map<String, ProcessedVideo> processedVideos) throws IOException, InterruptedException, AWTException {
+    Thread uploadVideos() throws IOException, InterruptedException, AWTException {
         Thread uploadThread = new Thread(() -> {
             try {
                 if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
                     driver.navigate().to(UPLOAD_URL);
                 }
+
+                Map<String, ProcessedVideo> processedVideos = ManageServer.processedVideos();
 
                 for (String key : processedVideos.keySet()) {
                     ProcessedVideo processedVideo = processedVideos.get(key);

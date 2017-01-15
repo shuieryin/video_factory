@@ -455,15 +455,14 @@ public class ManageServer extends NanoHTTPD {
                     executeCommandRemotely(args, true);
                     break;
                 case "uv":
-                    Map<String, ProcessedVideo> pendingUploadVids = new HashMap<>();
+                    processedVideos = new HashMap<>();
                     ProcessedVideo testProcessedVideo = new ProcessedVideo(Calendar.getInstance().getTimeInMillis(), "The Witcher 3", "/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01");
                     testProcessedVideo.setOriginalVideoPath("/Volumes/Anonymous/vids/pending_process/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01.mp4.done.3");
                     testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part1.mp4");
                     testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part2.mp4");
                     testProcessedVideo.addClipPath("/Volumes/Anonymous/vids/processed/The Witcher 3/The Witcher 3 2016.12.22 - 22.06.57.01/part3.mp4");
-                    pendingUploadVids.put("The Witcher 3 2016.12.22 - 22.06.57.01", testProcessedVideo);
-                    bm.isLoggedOnForUpload();
-                    uploadThread = bm.uploadVideos(pendingUploadVids);
+                    processedVideos.put("The Witcher 3 2016.12.22 - 22.06.57.01", testProcessedVideo);
+                    uploadThread = bm.uploadVideos();
                     break;
                 case "xs":
                     nm.balanceUploadSpeed();
@@ -564,7 +563,7 @@ public class ManageServer extends NanoHTTPD {
             status = "please_login_bilibili";
         } else {
             status = "bilibili_upload_started";
-            uploadThread = bm.uploadVideos(processedVideos);
+            uploadThread = bm.uploadVideos();
         }
 
         return status;
@@ -587,5 +586,9 @@ public class ManageServer extends NanoHTTPD {
         in.close();
 
         return response.toString();
+    }
+
+    static Map<String, ProcessedVideo> processedVideos() {
+        return processedVideos;
     }
 }
