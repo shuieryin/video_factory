@@ -45,16 +45,14 @@ class NetworkManager {
 
     private void reachDeviceInfoPage() throws InterruptedException, IOException {
         if (driver.findElements(By.id("eptMngRCon")).size() < 1) {
-            while (driver.findElements(By.id("pwdTipStr")).size() < 1) {
-                driver.navigate().to(GATEWAY_URL);
-                TimeUnit.SECONDS.sleep(3);
-            }
-
-            WebElement passwordField = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("lgPwd")));
-            TimeUnit.SECONDS.sleep(1);
-
             do {
-                passwordField.sendKeys(ManageServer.retrieveData("router_password"));
+                List<WebElement> passwordField;
+                while ((passwordField = driver.findElements(By.id("lgPwd"))).size() < 1) {
+                    driver.navigate().to(GATEWAY_URL);
+                    TimeUnit.SECONDS.sleep(3);
+                }
+
+                passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
 
                 WebElement logonButton = driver.findElement(By.id("loginSub"));
                 logonButton.click();
@@ -99,8 +97,11 @@ class NetworkManager {
             String uploadSpeedStr = childNodes.get(0).toString();
             String downloadSpeedStr = childNodes.get(1).toString();
 
-            totalUploadKiloBytes += parseByte(uploadSpeedStr, totalUploadKiloBytes);
-            totalDownloadKiloBytes += parseByte(downloadSpeedStr, totalDownloadKiloBytes);
+            long parsedUploadSeed = parseByte(uploadSpeedStr);
+            long parsedDownloadSeed = parseByte(downloadSpeedStr);
+
+            totalUploadKiloBytes += parsedUploadSeed;
+            totalDownloadKiloBytes += parsedDownloadSeed;
         }
 
         System.out.println("totalUploadKiloBytes: " + totalUploadKiloBytes);
@@ -161,24 +162,22 @@ class NetworkManager {
         System.out.println("manage button clicked");
     }
 
-    private long parseByte(String rawStr, long accBytes) {
+    private long parseByte(String rawStr) {
         Matcher matcher = speedPattern.matcher(rawStr);
         matcher.find();
 
         long number = Long.parseLong(matcher.group(1));
-        switch (matcher.group(2)) {
-            case "KB":
-                accBytes += number;
-                break;
+        String speedUnit = matcher.group(2);
+        switch (speedUnit) {
             case "MB":
-                accBytes += number * 1024;
+                number *= 1024;
                 break;
             case "GB":
-                accBytes += number * 1024 * 1024;
+                number *= 1024 * 1024;
                 break;
         }
 
-        return accBytes;
+        return number;
     }
 
 }

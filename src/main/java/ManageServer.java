@@ -42,14 +42,12 @@ public class ManageServer extends NanoHTTPD {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private ScheduledFuture<?> processVideoScheduler;
-    // private static final int PER_CLIP_DURATION_SEC = 500;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
     private static DataOutputStream commandOut;
     private BufferedReader commandIn;
     private boolean isSystemTurningOff = false;
-    // private static String eol = System.getProperty("line.separator");
     private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
     private static boolean isCommandDone = false;
     private static final String replaceSpace = "\\s";
@@ -336,7 +334,7 @@ public class ManageServer extends NanoHTTPD {
         System.out.println("executing command remotely: [" + command + "]");
         try {
             String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
-            commandOut.writeUTF(encodedCommand); //  + eol
+            commandOut.writeUTF(encodedCommand);
             commandOut.flush();
 
             while (!isCommandDone) {
@@ -359,8 +357,6 @@ public class ManageServer extends NanoHTTPD {
                     command
             };
             Process proc = rt.exec(cmd);
-
-//            proc.waitFor();
 
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
@@ -493,7 +489,6 @@ public class ManageServer extends NanoHTTPD {
 
                 String videoName = vidPathMatcher.group(1);
                 String gameName = vidPathMatcher.group(2);
-                // String fileExt = vidPathMatcher.group(10);
                 String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
                 executeCommand("rm -rf " + processedPath + "; mkdir -p " + processedPath);
 
