@@ -7,6 +7,7 @@ import java.util.List;
 class ProcessedVideo {
     private String videoTitle;
     private String gameTitle;
+    @SuppressWarnings("FieldCanBeLocal")
     private String processedPath;
     private String originalVideoPath;
     private List<String> clipPaths = new ArrayList<>();
@@ -58,12 +59,6 @@ class ProcessedVideo {
         this.processedPath = processedPath;
     }
 
-    @SuppressWarnings("unused")
-    String processedPath() {
-        return processedPath;
-    }
-
-    @SuppressWarnings("unused")
     String originalVideoPath() {
         return originalVideoPath;
     }

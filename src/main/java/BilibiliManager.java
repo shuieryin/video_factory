@@ -1,4 +1,7 @@
+import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -10,25 +13,49 @@ import java.awt.*;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Calendar;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 class BilibiliManager {
 
+    private static final String OUTPUT_FORMAT = "flv";
     private static final String LOGON_URL = "https://passport.bilibili.com/login";
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
     private static long expireTime;
     private static int CLIP_AMOUNT_PER_BATCH = 3;
+    @SuppressWarnings("FieldCanBeLocal")
+    private static int OVERLAP_DURATION_SECONDS = 3;
+    private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
+    private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
+    private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
+    private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
+    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
+    // private static final int WIDTH_SIZE = 720;
+    private static final int CRF = 10;
+    private static Pattern filesizePattern = Pattern.compile("(\\d+)");
+    private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
+    private static final String replaceSpace = "\\s";
+    private static Pattern uploadingPattern = Pattern.compile("Uploading|上传中断");
+    private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
 
     private String uid;
     private WebDriver driver;
     private WebDriverWait wait;
-    private Pattern uploadingPattern = Pattern.compile("Uploading|上传中断");
+    private Thread uploadThread;
+    private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
 
     BilibiliManager(String Uid) throws InterruptedException {
         this.uid = Uid;
@@ -42,52 +69,84 @@ class BilibiliManager {
         driver.navigate().to(LOGON_URL);
     }
 
-    boolean isLoggedOnForUpload() {
+    private boolean isLoggedOnForUpload() {
         driver.navigate().to(UPLOAD_URL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
 
         return driver.findElements(By.className("home-hint")).size() > 0;
     }
 
-    Thread uploadVideos() throws IOException, InterruptedException, AWTException {
-        Thread uploadThread = new Thread(() -> {
+    String uploadVideos() throws IOException, InterruptedException, AWTException {
+        if (null != uploadThread && !uploadThread.isAlive()) {
+            uploadThread = null;
+        }
+
+        String status = null;
+        if (null != uploadThread && uploadThread.isAlive()) {
+            status = "existing_video_being_uploaded";
+        } else if (processedVideos.isEmpty()) {
+            status = "no_processed_vids";
+        } else if (!isLoggedOnForUpload()) {
+            status = "please_login_bilibili";
+        }
+
+        if (!Strings.isNullOrEmpty(status)) {
+            return status;
+        }
+
+        status = "bilibili_upload_started";
+        uploadThread = new Thread(() -> {
             try {
                 if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
                     driver.navigate().to(UPLOAD_URL);
                 }
 
-                Map<String, ProcessedVideo> processedVideos = ManageServer.processedVideos();
-
+                // todo clone processedVideos
                 for (String key : processedVideos.keySet()) {
                     ProcessedVideo processedVideo = processedVideos.get(key);
                     wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
 
-                    int uploadCount = 0;
-                    for (String targetUploadClipPath : processedVideo.clipPaths()) {
-                        WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
-                        uploadInput.sendKeys(targetUploadClipPath);
-                        TimeUnit.SECONDS.sleep(1);
+                    String originalVideoPath = processedVideo.originalVideoPath().replaceAll("\\\\ ", " ");
+                    System.out.println("originalVideoPath: " + originalVideoPath);
 
-                        uploadCount++;
-
-                        if (0 != uploadCount % CLIP_AMOUNT_PER_BATCH) {
-                            continue;
-                        }
-
-                        boolean isUploading = true;
-                        while (isUploading) {
-                            List<WebElement> uploadsStatus = driver.findElements(By.className("upload-status"));
-                            for (WebElement uploadStatus : uploadsStatus) {
-                                if (uploadingPattern.matcher(uploadStatus.getAttribute("innerHTML")).find()) {
-                                    isUploading = true;
-                                    break;
-                                }
-
-                                isUploading = false;
+                    int finalClipCount = parseClipCount(originalVideoPath);
+                    int uploadedClipCount = 0;
+                    Set<String> existingClips = new HashSet<>();
+                    while (finalClipCount == 0 || finalClipCount != uploadedClipCount) {
+                        int uploadingCount = 0;
+                        uploadedClipCount = 0;
+                        List<WebElement> uploadsStatuses = driver.findElements(By.className("upload-status"));
+                        for (WebElement uploadStatus : uploadsStatuses) {
+                            String statusStr = uploadStatus.getAttribute("innerHTML");
+                            if (uploadingPattern.matcher(statusStr).find()) {
+                                uploadingCount++;
                             }
 
-                            TimeUnit.SECONDS.sleep(3);
+                            if (uploadCompletePattern.matcher(statusStr).find()) {
+                                uploadedClipCount++;
+                            }
                         }
+
+                        System.out.println();
+                        System.out.println("finalClipCount: " + finalClipCount);
+                        System.out.println("uploadingCount: " + uploadingCount);
+                        System.out.println("uploadedClipCount: " + uploadedClipCount);
+                        System.out.println();
+
+                        for (String targetUploadClipPath : processedVideo.clipPaths()) {
+                            if (existingClips.contains(targetUploadClipPath)) {
+                                continue;
+                            }
+
+                            if (uploadingCount < CLIP_AMOUNT_PER_BATCH) {
+                                WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
+                                uploadInput.sendKeys(targetUploadClipPath);
+                                existingClips.add(targetUploadClipPath);
+                            }
+                        }
+
+                        TimeUnit.SECONDS.sleep(5);
+                        finalClipCount = parseClipCount(originalVideoPath);
                     }
 
                     WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
@@ -123,7 +182,7 @@ class BilibiliManager {
                     WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
                     submitButton.click();
 
-                    WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"http://member.bilibili.com/v/video/submit.html\"]")));
+                    WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
 
                     processedVideo.uploadDone();
 
@@ -138,10 +197,10 @@ class BilibiliManager {
 
         uploadThread.start();
 
-        return uploadThread;
+        return status;
     }
 
-    boolean tapLogon(String inputCaptcha) {
+    private boolean tapLogon(String inputCaptcha) {
         WebElement vdCodeField = driver.findElement(By.id("vdCodeTxt"));
         vdCodeField.clear();
         vdCodeField.sendKeys(inputCaptcha);
@@ -156,7 +215,7 @@ class BilibiliManager {
         return isLoggedOnForUpload();
     }
 
-    boolean inputCredentials(String username, String password, boolean isReopenUrl) throws IOException, InterruptedException, AWTException {
+    private boolean inputCredentials(String username, String password, boolean isReopenUrl) throws IOException, InterruptedException, AWTException {
         if (isReopenUrl) {
             driver.navigate().to(LOGON_URL);
         }
@@ -183,7 +242,7 @@ class BilibiliManager {
         return false;
     }
 
-    File captchaImage() throws IOException {
+    private File captchaImage() throws IOException {
         WebElement captchaImg = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("captchaImg")));
         driver.manage().timeouts().implicitlyWait(500L, TimeUnit.MICROSECONDS);
 
@@ -222,5 +281,251 @@ class BilibiliManager {
     @SuppressWarnings("unused")
     String uid() {
         return uid;
+    }
+
+    boolean processVideos() {
+        System.out.println();
+        System.out.println("processing videos...");
+        if (null == ManageServer.commandOut) {
+            return false;
+        }
+
+        try {
+            for (String vidPath : pendingProcessVids(false)) {
+                System.out.println("vidPath: " + vidPath);
+                String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
+                long totalSeconds = videoDuration(parsedVidPath);
+
+                Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
+                vidPathMatcher.find();
+
+                String videoName = vidPathMatcher.group(1);
+                String gameName = vidPathMatcher.group(2);
+                String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
+                ManageServer.executeCommand("mkdir -p " + processedPath + "; rm -f " + processedPath + "*");
+
+                LocalDateTime timePoint = LocalDateTime.of(
+                        Integer.parseInt(vidPathMatcher.group(3)),
+                        Integer.parseInt(vidPathMatcher.group(4)),
+                        Integer.parseInt(vidPathMatcher.group(5)),
+                        Integer.parseInt(vidPathMatcher.group(6)),
+                        Integer.parseInt(vidPathMatcher.group(7)),
+                        Integer.parseInt(vidPathMatcher.group(8))
+                );
+
+                long clipCount = 0;
+                long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
+                ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
+                String initParsedVidPath = parsedVidPath + ".done." + clipCount;
+                processedVideo.setOriginalVideoPath(initParsedVidPath);
+                processedVideos.put(gameName, processedVideo);
+
+                long startPos = 0;
+                String lastProcessedClipPath;
+                do {
+                    lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
+                    String command = "ffmpeg -i " + parsedVidPath
+                            + " -ss " + (startPos - OVERLAP_DURATION_SECONDS)
+                            //+ " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
+                            + " -codec:v libx264"
+                            + " -ar 44100"
+                            + " -crf " + CRF
+                            + " -fs " + LIMIT_SIZE_BYTES
+                            + " " + lastProcessedClipPath;
+
+                    ManageServer.executeCommandRemotely(command, true);
+
+                    System.out.println();
+                    System.out.println("startPos: " + startPos);
+                    System.out.println("totalSeconds: " + totalSeconds);
+                    System.out.println();
+
+                    startPos += videoDuration(lastProcessedClipPath);
+                    String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
+                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
+                    fileSizeMatcher.find();
+                    System.out.println("startPos: " + startPos);
+                    processedVideo.addClipPath(lastProcessedClipPath.replaceAll("\\\\ ", " "));
+                } while (startPos < totalSeconds);
+
+                System.out.println();
+                System.out.println("startPos: " + startPos);
+                System.out.println("totalSeconds: " + totalSeconds);
+                System.out.println();
+
+                String finalParsedVidPath = parsedVidPath + ".done." + clipCount;
+                processedVideo.setOriginalVideoPath(finalParsedVidPath);
+                ManageServer.executeCommand("mv " + parsedVidPath+ " " + finalParsedVidPath);
+
+                System.out.println(gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("process videos done");
+        System.out.println();
+        return true;
+    }
+
+    private List<String> pendingProcessVids(boolean isGetDones) throws IOException {
+        List<String> vidsList = new ArrayList<>();
+
+        Path rootPath = Paths.get("/root/vids/pending_process");
+
+        if (!Files.exists(rootPath)) {
+            return vidsList;
+        }
+
+        Stream<Path> gamePaths = Files.walk(rootPath);
+        gamePaths.forEach(gamePath -> {
+            if (Files.isDirectory(gamePath) && !gamePath.toString().equals(rootPath.toString())) {
+                try (Stream<Path> vidsPath = Files.walk(gamePath)) {
+                    vidsPath.forEach(vidPath -> {
+                        if (Files.isDirectory(vidPath)) {
+                            return;
+                        }
+
+                        String vidPathStr = vidPath.toString();
+                        Matcher matcher = isGetDones ? processedVidPattern.matcher(vidPathStr) : vidPathPattern.matcher(vidPathStr);
+                        if (matcher.find()) {
+                            vidsList.add(vidPathStr);
+                        }
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        return vidsList;
+    }
+
+    private long videoDuration(String vidPath) {
+        String timeOutput = ManageServer.executeCommand("ffmpeg -i " + vidPath + " 2>&1 | grep Duration | grep -oP \"^\\s*Duration:\\s*\\K(\\S+),\" | cut -c 1-11");
+
+        Matcher timerMatcher = timePattern.matcher(timeOutput);
+        timerMatcher.find();
+        int vidHour = Integer.parseInt(timerMatcher.group(1));
+        int vidMinutes = Integer.parseInt(timerMatcher.group(2));
+        int vidSeconds = Integer.parseInt(timerMatcher.group(3));
+        return 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
+    }
+
+    private void latestCaptcha(JSONObject returnJSON) throws IOException {
+        File captchaImage = captchaImage();
+        System.out.println(captchaImage);
+
+        InputStream captchaImageIn = new FileInputStream(captchaImage);
+        byte[] captchaImageBytes = IOUtils.toByteArray(captchaImageIn);
+
+        returnJSON.put("event", "input_captcha");
+        returnJSON.put("is_logged_on", false);
+        returnJSON.put("captcha_image_bytes", org.apache.xerces.impl.dv.util.Base64.encode(captchaImageBytes));
+    }
+
+    void stopUploadThread() {
+        if (null != uploadThread && uploadThread.isAlive()) {
+            //noinspection deprecation
+            uploadThread.stop();
+            uploadThread = null;
+        }
+    }
+
+    void initUploadVideo() throws IOException {
+        List<String> pendingUploadVids = pendingProcessVids(true);
+
+        for (String pendingUploadVid : pendingUploadVids) {
+            Matcher vidPathMatcher = processedVidPathPattern.matcher(pendingUploadVid);
+            vidPathMatcher.find();
+
+            String videoName = vidPathMatcher.group(1);
+            String gameName = vidPathMatcher.group(2);
+
+            String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
+
+            LocalDateTime timePoint = LocalDateTime.of(
+                    Integer.parseInt(vidPathMatcher.group(3)),
+                    Integer.parseInt(vidPathMatcher.group(4)),
+                    Integer.parseInt(vidPathMatcher.group(5)),
+                    Integer.parseInt(vidPathMatcher.group(6)),
+                    Integer.parseInt(vidPathMatcher.group(7)),
+                    Integer.parseInt(vidPathMatcher.group(8))
+            );
+
+            long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
+            ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
+            processedVideo.setOriginalVideoPath(pendingUploadVid.replaceAll(replaceSpace, "\\\\ "));
+
+            int clipCount = Integer.parseInt(vidPathMatcher.group(11));
+            String uploadRootPath = processedPath.replaceAll("\\\\", "");
+            for (int i = 0; i < clipCount; i++) {
+                processedVideo.addClipPath(uploadRootPath + "part" + (i + 1) + "." + OUTPUT_FORMAT);
+            }
+
+            processedVideos.put(gameName, processedVideo);
+        }
+    }
+
+    String handleUserInput(Map<String, List<String>> getParams) {
+        String returnContent = "";
+        try {
+            String uid = getParams.get("uid").get(0);
+
+            JSONObject returnJSON = new JSONObject();
+            returnJSON.put("uid", uid);
+            String event = getParams.get("event").get(0);
+            switch (event) {
+                case "init_browser_session":
+                    updateExpireTime();
+                    break;
+                case "close_browser_session":
+                    close();
+                    ManageServer.bilibiliManagersMap.remove(uid);
+                    break;
+                case "input_captcha":
+                    String inputCaptcha = getParams.get("input_captcha").get(0);
+                    boolean isLogonSuccess = tapLogon(inputCaptcha);
+                    returnJSON.put("status", isLogonSuccess);
+                    break;
+                case "input_credentials":
+                    String username = getParams.get("username").get(0);
+                    String password = getParams.get("password").get(0);
+                    boolean isReopenUrl = "true".equals(getParams.get("is_reopen_url").get(0));
+                    if (inputCredentials(username, password, isReopenUrl)) {
+                        returnJSON.put("is_logged_on", true);
+                    } else {
+                        latestCaptcha(returnJSON);
+                    }
+                    break;
+                case "pending_process_vids":
+                    returnJSON.put("vids_list", pendingProcessVids(false));
+                    break;
+                case "get_latest_captcha":
+                    latestCaptcha(returnJSON);
+                    break;
+                case "pending_upload_vids":
+                    returnJSON.put("vids_list", pendingProcessVids(true));
+                    break;
+                case "upload_vids":
+                    returnJSON.put("status", uploadVideos());
+                    break;
+            }
+
+            returnJSON.toMap().forEach((key, value) -> System.out.println(key + "=" + value));
+            System.out.println();
+
+            returnContent = returnJSON.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return returnContent;
+    }
+
+    private int parseClipCount(String originalVideoPath) {
+        Matcher vidPathMatcher = processedVidPathPattern.matcher(originalVideoPath);
+        vidPathMatcher.find();
+        return Integer.parseInt(vidPathMatcher.group(11));
     }
 }

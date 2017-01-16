@@ -17,7 +17,8 @@ import java.util.regex.Pattern;
 class NetworkManager {
 
     private static final String GATEWAY_URL = "http://192.168.1.1/";
-    private static final int MAX_UPLOAD_SPEED = 650;
+    private static final int DEFAULT_UPLOAD_SPEED = 800;
+    private static final int MAX_UPLOAD_SPEED = 450;
 
     private WebDriver driver;
     private WebDriverWait wait;
@@ -111,7 +112,7 @@ class NetworkManager {
 
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngDetail")));
 
-        long targetUploadSpeedLimit = Math.max(10, MAX_UPLOAD_SPEED - totalUploadKiloBytes);
+        long targetUploadSpeedLimit = totalDownloadKiloBytes == 0 ? DEFAULT_UPLOAD_SPEED : Math.max(10, MAX_UPLOAD_SPEED - totalUploadKiloBytes);
         System.out.println("targetUploadSpeedLimit: " + targetUploadSpeedLimit);
         setLimitUpload(targetUploadSpeedLimit);
     }
