@@ -7,7 +7,7 @@ import java.util.List;
 class ProcessedVideo {
     private String videoTitle;
     private String gameTitle;
-    @SuppressWarnings("FieldCanBeLocal")
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private String processedPath;
     private String originalVideoPath;
     private List<String> clipPaths = new ArrayList<>();
