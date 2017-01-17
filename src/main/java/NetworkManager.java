@@ -17,12 +17,14 @@ import java.util.regex.Pattern;
 class NetworkManager {
 
     private static final String GATEWAY_URL = "http://192.168.1.1/";
-    private static final int DEFAULT_UPLOAD_SPEED = 800;
-    private static final int MAX_UPLOAD_SPEED = 450;
+    private static final int MAX_UPLOAD_SPEED = 750;
+    private static final int DEFAULT_UPLOAD_SPEED = 450;
+    private static final int PER_SPEED_UP = 30;
 
     private WebDriver driver;
     private WebDriverWait wait;
     private Pattern speedPattern = Pattern.compile("(\\d+)(KB|MB|GB)/s");
+    private long currentSpeed = DEFAULT_UPLOAD_SPEED;
 
     NetworkManager() {
         driver = new FirefoxDriver();
@@ -78,7 +80,7 @@ class NetworkManager {
         WebElement deviceTable = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngRCon")));
         Elements deviceInfos;
         do {
-            String deviceTableHtmlStr = deviceTable.getAttribute("innerHTML");
+            String deviceTableHtmlStr = deviceTable.getText();
             Document deviceTableDom = Jsoup.parse(deviceTableHtmlStr);
             deviceInfos = deviceTableDom.getElementsByClass("vs");
         } while (deviceInfos.isEmpty());
@@ -112,12 +114,17 @@ class NetworkManager {
 
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngDetail")));
 
-        long targetUploadSpeedLimit = totalDownloadKiloBytes == 0 ? DEFAULT_UPLOAD_SPEED : Math.max(10, MAX_UPLOAD_SPEED - totalUploadKiloBytes);
-        System.out.println("targetUploadSpeedLimit: " + targetUploadSpeedLimit);
-        setLimitUpload(targetUploadSpeedLimit);
+        if (totalUploadKiloBytes == 0 && totalDownloadKiloBytes == 0) {
+            currentSpeed = currentSpeed < MAX_UPLOAD_SPEED ? currentSpeed + PER_SPEED_UP : MAX_UPLOAD_SPEED;
+        } else {
+            currentSpeed = Math.max(10, DEFAULT_UPLOAD_SPEED - totalUploadKiloBytes);
+        }
+
+        System.out.println("targetUploadSpeedLimit: " + currentSpeed);
+        setLimitUpload();
     }
 
-    private void setLimitUpload(long targetUploadSpeedLimit) throws InterruptedException {
+    private void setLimitUpload() throws InterruptedException {
         try {
             WebElement existingLimitDesc = driver.findElement(By.cssSelector("span[class=\"digit speedLimit\"]"));
 
@@ -131,12 +138,12 @@ class NetworkManager {
             WebElement uploadSpeedLimitText = driver.findElement(By.cssSelector("input[class=\"speedLimit text\"]"));
             long existingSpeedLimit = Long.parseLong(uploadSpeedLimitText.getAttribute("value"));
             System.out.println("existingSpeedLimit: " + existingSpeedLimit);
-            if (targetUploadSpeedLimit != existingSpeedLimit) {
+            if (currentSpeed != existingSpeedLimit) {
                 uploadSpeedLimitText.clear();
-                uploadSpeedLimitText.sendKeys(String.valueOf(targetUploadSpeedLimit) + Keys.ENTER);
+                uploadSpeedLimitText.sendKeys(String.valueOf(currentSpeed) + Keys.ENTER);
             }
         } catch (Exception e) {
-            setLimitUpload(targetUploadSpeedLimit);
+            setLimitUpload();
         }
 
         while (!driver.findElement(By.id("eptMngList")).isDisplayed()) {

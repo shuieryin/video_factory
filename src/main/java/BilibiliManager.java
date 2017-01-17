@@ -44,7 +44,7 @@ class BilibiliManager {
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
     // private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 10;
+    private static final int CRF = 15;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
@@ -57,7 +57,7 @@ class BilibiliManager {
     private Thread uploadThread;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
 
-    BilibiliManager(String Uid) throws InterruptedException {
+    BilibiliManager(String Uid) throws InterruptedException, IOException {
         this.uid = Uid;
 
         System.out.println("launching firefox browser for [" + Uid + "]");
@@ -67,10 +67,14 @@ class BilibiliManager {
         driver = new FirefoxDriver();
         wait = new WebDriverWait(driver, 20);
         driver.navigate().to(LOGON_URL);
+
+        initUploadVideo();
     }
 
     private boolean isLoggedOnForUpload() {
-        driver.navigate().to(UPLOAD_URL);
+        if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
+            driver.navigate().to(UPLOAD_URL);
+        }
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
 
         return driver.findElements(By.className("home-hint")).size() > 0;
@@ -78,10 +82,11 @@ class BilibiliManager {
 
     String uploadVideos() throws IOException, InterruptedException, AWTException {
         if (null != uploadThread && !uploadThread.isAlive()) {
+            System.out.println("cleaning upload thread");
             uploadThread = null;
         }
 
-        String status = null;
+        String status = "";
         if (null != uploadThread && uploadThread.isAlive()) {
             status = "existing_video_being_uploaded";
         } else if (processedVideos.isEmpty()) {
@@ -96,28 +101,27 @@ class BilibiliManager {
 
         status = "bilibili_upload_started";
         uploadThread = new Thread(() -> {
-            try {
-                if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
-                    driver.navigate().to(UPLOAD_URL);
-                }
+            for (String key : processedVideos.keySet()) {
+                ProcessedVideo processedVideo = processedVideos.get(key);
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
 
-                // todo clone processedVideos
-                for (String key : processedVideos.keySet()) {
-                    ProcessedVideo processedVideo = processedVideos.get(key);
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
-
-                    String originalVideoPath = processedVideo.originalVideoPath().replaceAll("\\\\ ", " ");
-                    System.out.println("originalVideoPath: " + originalVideoPath);
-
-                    int finalClipCount = parseClipCount(originalVideoPath);
-                    int uploadedClipCount = 0;
-                    Set<String> existingClips = new HashSet<>();
-                    while (finalClipCount == 0 || finalClipCount != uploadedClipCount) {
+                int finalClipCount = parseClipCount(processedVideo);
+                int uploadedClipCount = 0;
+                Set<String> existingClips = new HashSet<>();
+                while (finalClipCount == 0 || finalClipCount != uploadedClipCount) {
+                    System.out.println();
+                    System.out.println("Tracking upload status...");
+                    try {
                         int uploadingCount = 0;
                         uploadedClipCount = 0;
                         List<WebElement> uploadsStatuses = driver.findElements(By.className("upload-status"));
+                        System.out.println("uploadsStatuses size: " + uploadsStatuses.size());
                         for (WebElement uploadStatus : uploadsStatuses) {
-                            String statusStr = uploadStatus.getAttribute("innerHTML");
+                            String statusStr = uploadStatus.getText();
+                            if (null == statusStr) {
+                                System.out.println("statusStr is null");
+                                continue;
+                            }
                             if (uploadingPattern.matcher(statusStr).find()) {
                                 uploadingCount++;
                             }
@@ -127,11 +131,9 @@ class BilibiliManager {
                             }
                         }
 
-                        System.out.println();
                         System.out.println("finalClipCount: " + finalClipCount);
                         System.out.println("uploadingCount: " + uploadingCount);
                         System.out.println("uploadedClipCount: " + uploadedClipCount);
-                        System.out.println();
 
                         for (String targetUploadClipPath : processedVideo.clipPaths()) {
                             if (existingClips.contains(targetUploadClipPath)) {
@@ -142,56 +144,68 @@ class BilibiliManager {
                                 WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
                                 uploadInput.sendKeys(targetUploadClipPath);
                                 existingClips.add(targetUploadClipPath);
+                                uploadingCount++;
+                                TimeUnit.SECONDS.sleep(2);
                             }
                         }
 
+                        finalClipCount = parseClipCount(processedVideo);
+                    } catch (Exception e) {
+                        System.out.println();
+                        System.out.println("Errors during tracking update status:");
+                        e.printStackTrace();
+                        System.out.println();
+                    }
+
+                    System.out.println("Tracked");
+                    System.out.println();
+                    try {
                         TimeUnit.SECONDS.sleep(5);
-                        finalClipCount = parseClipCount(originalVideoPath);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-
-                    WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
-                    selfMadeRadio.click();
-
-                    WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
-
-                    List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
-
-                    for (WebElement curElement : categoryElements) {
-                        String innerHTML = curElement.getAttribute("innerHTML");
-                        if ("Gaming".equals(innerHTML)) {
-                            curElement.click();
-                        }
-
-                        if ("Stand-alone/Online Games".equals(innerHTML)) {
-                            curElement.findElement(By.xpath("..")).click();
-                            break;
-                        }
-                    }
-
-                    WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
-                    titleField.clear();
-                    titleField.sendKeys(processedVideo.videoTitle());
-
-                    WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
-                    tagsField.sendKeys(processedVideo.gameTitle());
-                    tagsField.sendKeys(Keys.ENTER);
-
-                    WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
-                    descField.sendKeys(processedVideo.videoTitle());
-
-                    WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
-                    submitButton.click();
-
-                    WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
-
-                    processedVideo.uploadDone();
-
-                    submitMoreButton.click();
-
-                    processedVideos.remove(key);
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+
+                WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
+                selfMadeRadio.click();
+
+                WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+
+                List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
+
+                for (WebElement curElement : categoryElements) {
+                    String innerHTML = curElement.getText();
+                    if ("Gaming".equals(innerHTML)) {
+                        curElement.click();
+                    }
+
+                    if ("Stand-alone/Online Games".equals(innerHTML)) {
+                        curElement.findElement(By.xpath("..")).click();
+                        break;
+                    }
+                }
+
+                WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+                titleField.clear();
+                titleField.sendKeys(processedVideo.videoTitle());
+
+                WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
+                tagsField.sendKeys(processedVideo.gameTitle());
+                tagsField.sendKeys(Keys.ENTER);
+
+                WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
+                descField.sendKeys(processedVideo.videoTitle());
+
+                WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
+                submitButton.click();
+
+                WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
+
+                processedVideo.uploadDone();
+
+                submitMoreButton.click();
+
+                processedVideos.remove(key);
             }
         });
 
@@ -355,7 +369,7 @@ class BilibiliManager {
 
                 String finalParsedVidPath = parsedVidPath + ".done." + clipCount;
                 processedVideo.setOriginalVideoPath(finalParsedVidPath);
-                ManageServer.executeCommand("mv " + parsedVidPath+ " " + finalParsedVidPath);
+                ManageServer.executeCommand("mv " + parsedVidPath + " " + finalParsedVidPath);
 
                 System.out.println(gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
             }
@@ -432,10 +446,14 @@ class BilibiliManager {
         }
     }
 
-    void initUploadVideo() throws IOException {
+    private void initUploadVideo() throws IOException {
+        System.out.println();
+        System.out.println("initUploadVideo start");
         List<String> pendingUploadVids = pendingProcessVids(true);
+        System.out.println("pendingUploadVids size: " + pendingUploadVids.size());
 
         for (String pendingUploadVid : pendingUploadVids) {
+            System.out.println("init pending upload vid: " + pendingUploadVid);
             Matcher vidPathMatcher = processedVidPathPattern.matcher(pendingUploadVid);
             vidPathMatcher.find();
 
@@ -465,6 +483,7 @@ class BilibiliManager {
 
             processedVideos.put(gameName, processedVideo);
         }
+        System.out.println();
     }
 
     String handleUserInput(Map<String, List<String>> getParams) {
@@ -523,8 +542,8 @@ class BilibiliManager {
         return returnContent;
     }
 
-    private int parseClipCount(String originalVideoPath) {
-        Matcher vidPathMatcher = processedVidPathPattern.matcher(originalVideoPath);
+    private int parseClipCount(ProcessedVideo processedVideo) {
+        Matcher vidPathMatcher = processedVidPathPattern.matcher(processedVideo.originalVideoPath().replaceAll("\\\\ ", " "));
         vidPathMatcher.find();
         return Integer.parseInt(vidPathMatcher.group(11));
     }

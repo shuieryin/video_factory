@@ -188,10 +188,6 @@ public class ManageServer extends NanoHTTPD {
 
         System.setProperty("webdriver.gecko.driver", driverPath);
 
-        for (BilibiliManager bm : bilibiliManagersMap.values()) {
-            bm.initUploadVideo();
-        }
-
         handleUserInput("ibs");
 
         System.out.println("\nRunning!\n");
@@ -308,7 +304,6 @@ public class ManageServer extends NanoHTTPD {
                     }
                     break;
                 case "cmd":
-                    System.out.println("cmd: " + args);
                     executeCommandRemotely(args, true);
                     break;
                 case "xs":
