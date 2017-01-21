@@ -43,8 +43,8 @@ class BilibiliManager {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
-    // private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 15;
+    private static final int WIDTH_SIZE = 810;
+    private static final int CRF = 13;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
@@ -54,7 +54,7 @@ class BilibiliManager {
     private String uid;
     private WebDriver driver;
     private WebDriverWait wait;
-    private Thread uploadThread;
+    Thread uploadThread;
     private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
 
     BilibiliManager(String Uid) throws InterruptedException, IOException {
@@ -339,8 +339,8 @@ class BilibiliManager {
                 do {
                     lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -i " + parsedVidPath
-                            + " -ss " + (startPos - OVERLAP_DURATION_SECONDS)
-                            //+ " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
+                            + " -ss " + startPos
+                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -ar 44100"
                             + " -crf " + CRF
@@ -354,7 +354,7 @@ class BilibiliManager {
                     System.out.println("totalSeconds: " + totalSeconds);
                     System.out.println();
 
-                    startPos += videoDuration(lastProcessedClipPath);
+                    startPos += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
                     String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
                     Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
                     fileSizeMatcher.find();

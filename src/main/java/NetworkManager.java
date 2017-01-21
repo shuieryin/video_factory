@@ -73,6 +73,24 @@ class NetworkManager {
     }
 
     void balanceUploadSpeed() throws InterruptedException, IOException {
+        System.out.println();
+        System.out.println("Start balancing upload speed");
+        boolean hasUploadThread = false;
+        System.out.println("Checking has existing upload thread");
+        for (BilibiliManager bilibiliManager : ManageServer.bilibiliManagersMap.values()) {
+            if (null != bilibiliManager.uploadThread && bilibiliManager.uploadThread.isAlive()) {
+                hasUploadThread = true;
+                break;
+            }
+        }
+
+        if (!hasUploadThread) {
+            System.out.println("No upload thread found, exit blanace upload speed feature");
+            return;
+        }
+
+        System.out.println("Found upload thread, balancing upload speed");
+
         reachDeviceInfoPage();
 
         ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 0);");
