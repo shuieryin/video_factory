@@ -360,7 +360,7 @@ class BilibiliManager {
                     fileSizeMatcher.find();
                     System.out.println("startPos: " + startPos);
                     processedVideo.addClipPath(lastProcessedClipPath.replaceAll("\\\\ ", " "));
-                } while (startPos < totalSeconds);
+                } while (startPos < totalSeconds - OVERLAP_DURATION_SECONDS);
 
                 System.out.println();
                 System.out.println("startPos: " + startPos);
