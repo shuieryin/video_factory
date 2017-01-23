@@ -10,8 +10,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class ProcessedVideo {
-    String videoName;
-    String gameName;
+    private String videoName;
+    private String gameName;
     String processedPath;
     private String originalVideoPath;
     private List<String> clipPaths = new ArrayList<>();
@@ -99,17 +99,17 @@ class ProcessedVideo {
         this.originalVideoPath = originalVideoPath;
     }
 
-    String videoTitle() {
-        return videoName;
-    }
-
-    String gameTitle() {
-        return gameName;
-    }
-
     String uuid() { return uuid; }
 
     void uploadDone() {
         ManageServer.executeCommand("mv " + originalVideoPath + " " + originalVideoPath + ".uploaded");
+    }
+
+    String videoName() {
+        return videoName;
+    }
+
+    String gameName() {
+        return gameName;
     }
 }

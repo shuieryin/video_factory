@@ -120,15 +120,17 @@ class BilibiliManager {
 
                 boolean isNewStory = false;
                 List<String> tabs = new ArrayList<> (driver.getWindowHandles());
-                if (!lastGameName.equals(processedVideo.gameName)) {
+                if (!lastGameName.equals(processedVideo.gameName())) {
                     driver.navigate().to(APPEND_UPLOAD_URL);
                     WebElement searchSection = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("search-wrp")));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchSection);
                     WebElement searchStory = searchSection.findElement(By.tagName("input"));
                     searchStory.clear();
-                    searchStory.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
+                    searchStory.sendKeys(processedVideo.gameName() + Keys.ENTER);
 
                     try {
                         WebElement existingStoryLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", existingStoryLink);
                         existingStoryLink.click();
                         driver.switchTo().window(tabs.get(1));
                     } catch (Exception e) {
@@ -176,6 +178,7 @@ class BilibiliManager {
                             if (uploadingCount < CLIP_AMOUNT_PER_BATCH) {
                                 System.out.println("targetUploadClipPath: " + targetUploadClipPath);
                                 WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", uploadInput);
                                 uploadInput.sendKeys(targetUploadClipPath);
                                 existingClips.add(targetUploadClipPath);
                                 uploadingCount++;
@@ -202,9 +205,11 @@ class BilibiliManager {
 
                 if (isNewStory) {
                     WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", selfMadeRadio);
                     selfMadeRadio.click();
 
                     WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", categorySection);
 
                     List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
 
@@ -221,22 +226,25 @@ class BilibiliManager {
                     }
 
                     WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", titleField);
                     titleField.clear();
-                    titleField.sendKeys(processedVideo.videoTitle());
+                    titleField.sendKeys(processedVideo.videoName());
 
                     WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
-                    for (String tag : processedVideo.gameTitle().split(" ")) {
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", tagsField);
+                    for (String tag : processedVideo.gameName().split(" ")) {
                         tagsField.sendKeys(tag + Keys.ENTER);
                     }
-                    tagsField.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
+                    tagsField.sendKeys(processedVideo.gameName() + Keys.ENTER);
 
                     WebElement descSection = driver.findElement(By.className("section template-description-wrp"));
-
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", descSection);
                     WebElement descField = descSection.findElement(By.tagName("textarea"));
-                    descField.sendKeys(processedVideo.videoTitle());
+                    descField.sendKeys(processedVideo.gameName());
                 }
 
                 WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", submitButton);
                 submitButton.click();
 
                 wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
@@ -247,7 +255,7 @@ class BilibiliManager {
                     driver.switchTo().window(tabs.get(0));
                 }
 
-                lastGameName = processedVideo.gameName;
+                lastGameName = processedVideo.gameName();
 
                 // submitMoreButton.click();
 
@@ -407,7 +415,7 @@ class BilibiliManager {
                 processedVideo.setOriginalVideoPath(finalParsedVidPath);
                 ManageServer.executeCommand("mv " + parsedVidPath + " " + finalParsedVidPath);
 
-                System.out.println(processedVideo.gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+                System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -506,7 +514,7 @@ class BilibiliManager {
                 processedVideo.addClipPath(uploadRootPath + processedVideo.uuid() + "-" + (i + 1) + "." + OUTPUT_FORMAT);
             }
 
-            processedVideos.put(processedVideo.videoName, processedVideo);
+            processedVideos.put(processedVideo.videoName(), processedVideo);
         }
         System.out.println();
     }
