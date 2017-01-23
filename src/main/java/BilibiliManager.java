@@ -107,6 +107,7 @@ class BilibiliManager {
         status = "bilibili_upload_started";
         uploadThread = new Thread(() -> {
             System.out.println("processedVideos size: " + processedVideos.size());
+            String lastGameName = "";
             for (String key : processedVideos.keySet()) {
                 ProcessedVideo processedVideo = processedVideos.get(key);
 
@@ -117,21 +118,24 @@ class BilibiliManager {
 
                 System.out.println("processedVideo is not empty");
 
-                WebElement searchSection = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("search-wrp")));
-                WebElement searchStory = searchSection.findElement(By.tagName("input"));
-                searchStory.clear();
-                searchStory.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
-
                 boolean isNewStory = false;
                 List<String> tabs = new ArrayList<> (driver.getWindowHandles());
-                try {
-                    WebElement existingStoryLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
-                    existingStoryLink.click();
-                    driver.switchTo().window(tabs.get(1));
-                } catch (Exception e) {
-                    driver.navigate().to(UPLOAD_URL);
-                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
-                    isNewStory = true;
+                if (!lastGameName.equals(processedVideo.gameName)) {
+                    driver.navigate().to(APPEND_UPLOAD_URL);
+                    WebElement searchSection = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("search-wrp")));
+                    WebElement searchStory = searchSection.findElement(By.tagName("input"));
+                    searchStory.clear();
+                    searchStory.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
+
+                    try {
+                        WebElement existingStoryLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
+                        existingStoryLink.click();
+                        driver.switchTo().window(tabs.get(1));
+                    } catch (Exception e) {
+                        driver.navigate().to(UPLOAD_URL);
+                        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
+                        isNewStory = true;
+                    }
                 }
 
                 int finalClipCount = parseClipCount(processedVideo);
@@ -243,9 +247,10 @@ class BilibiliManager {
                     driver.switchTo().window(tabs.get(0));
                 }
 
+                lastGameName = processedVideo.gameName;
+
                 // submitMoreButton.click();
 
-                driver.navigate().to(APPEND_UPLOAD_URL);
                 processedVideos.remove(key);
             }
         });
