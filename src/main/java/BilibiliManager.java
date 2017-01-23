@@ -19,8 +19,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -34,22 +32,28 @@ class BilibiliManager {
     private static final String LOGON_URL = "https://passport.bilibili.com/login";
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
+    private static final String APPEND_UPLOAD_URL = "http://member.bilibili.com/v/#!/article";
     private static long expireTime;
     private static int CLIP_AMOUNT_PER_BATCH = 3;
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 3;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
+    // private static Pattern existingProcessedPartPattern = Pattern.compile("/part(\\d+)\\." + OUTPUT_FORMAT + "$");
     private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
-    private static final int WIDTH_SIZE = 810;
-    private static final int CRF = 13;
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
     private static Pattern uploadingPattern = Pattern.compile("Uploading|上传中断");
     private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
+
+    private static final int WIDTH_SIZE = 720;
+    private static final int CRF = 5;
+    private static final int AUDIO_BIT_RATE = 192;
+    private static final int BIT_RATE = 2500;
+    private static final int FPS = 30;
 
     private String uid;
     private WebDriver driver;
@@ -72,12 +76,13 @@ class BilibiliManager {
     }
 
     private boolean isLoggedOnForUpload() {
-        if (!UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
-            driver.navigate().to(UPLOAD_URL);
+        System.out.println("driver.getCurrentUrl(): " + driver.getCurrentUrl());
+        if (!APPEND_UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
+            driver.navigate().to(APPEND_UPLOAD_URL);
         }
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
 
-        return driver.findElements(By.className("home-hint")).size() > 0;
+        return driver.findElements(By.className("search-wrp")).size() > 0;
     }
 
     String uploadVideos() throws IOException, InterruptedException, AWTException {
@@ -101,9 +106,33 @@ class BilibiliManager {
 
         status = "bilibili_upload_started";
         uploadThread = new Thread(() -> {
+            System.out.println("processedVideos size: " + processedVideos.size());
             for (String key : processedVideos.keySet()) {
                 ProcessedVideo processedVideo = processedVideos.get(key);
-                wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
+
+                if (processedVideo.clipPaths().isEmpty()) {
+                    System.out.println("processedVideo.clipPaths().isEmpty");
+                    continue;
+                }
+
+                System.out.println("processedVideo is not empty");
+
+                WebElement searchSection = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("search-wrp")));
+                WebElement searchStory = searchSection.findElement(By.tagName("input"));
+                searchStory.clear();
+                searchStory.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
+
+                boolean isNewStory = false;
+                List<String> tabs = new ArrayList<> (driver.getWindowHandles());
+                try {
+                    WebElement existingStoryLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
+                    existingStoryLink.click();
+                    driver.switchTo().window(tabs.get(1));
+                } catch (Exception e) {
+                    driver.navigate().to(UPLOAD_URL);
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
+                    isNewStory = true;
+                }
 
                 int finalClipCount = parseClipCount(processedVideo);
                 int uploadedClipCount = 0;
@@ -141,6 +170,7 @@ class BilibiliManager {
                             }
 
                             if (uploadingCount < CLIP_AMOUNT_PER_BATCH) {
+                                System.out.println("targetUploadClipPath: " + targetUploadClipPath);
                                 WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
                                 uploadInput.sendKeys(targetUploadClipPath);
                                 existingClips.add(targetUploadClipPath);
@@ -166,45 +196,56 @@ class BilibiliManager {
                     }
                 }
 
-                WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
-                selfMadeRadio.click();
+                if (isNewStory) {
+                    WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
+                    selfMadeRadio.click();
 
-                WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+                    WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
 
-                List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
+                    List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
 
-                for (WebElement curElement : categoryElements) {
-                    String innerHTML = curElement.getText();
-                    if ("Gaming".equals(innerHTML)) {
-                        curElement.click();
+                    for (WebElement curElement : categoryElements) {
+                        String innerHTML = curElement.getAttribute("innerHTML");
+                        if ("Gaming".equals(innerHTML)) {
+                            curElement.click();
+                        }
+
+                        if ("Stand-alone/Online Games".equals(innerHTML)) {
+                            curElement.findElement(By.xpath("..")).click();
+                            break;
+                        }
                     }
 
-                    if ("Stand-alone/Online Games".equals(innerHTML)) {
-                        curElement.findElement(By.xpath("..")).click();
-                        break;
+                    WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+                    titleField.clear();
+                    titleField.sendKeys(processedVideo.videoTitle());
+
+                    WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
+                    for (String tag : processedVideo.gameTitle().split(" ")) {
+                        tagsField.sendKeys(tag + Keys.ENTER);
                     }
+                    tagsField.sendKeys(processedVideo.gameTitle() + Keys.ENTER);
+
+                    WebElement descSection = driver.findElement(By.className("section template-description-wrp"));
+
+                    WebElement descField = descSection.findElement(By.tagName("textarea"));
+                    descField.sendKeys(processedVideo.videoTitle());
                 }
-
-                WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
-                titleField.clear();
-                titleField.sendKeys(processedVideo.videoTitle());
-
-                WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
-                tagsField.sendKeys(processedVideo.gameTitle());
-                tagsField.sendKeys(Keys.ENTER);
-
-                WebElement descField = driver.findElement(By.cssSelector("textarea[placeholder=\"Proper description is beneficial to submission approval, and promotes the occurrence frequency in category and searching.\"]"));
-                descField.sendKeys(processedVideo.videoTitle());
 
                 WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
                 submitButton.click();
 
-                WebElement submitMoreButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
-
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
                 processedVideo.uploadDone();
 
-                submitMoreButton.click();
+                if (!isNewStory) {
+                    driver.close();
+                    driver.switchTo().window(tabs.get(0));
+                }
 
+                // submitMoreButton.click();
+
+                driver.navigate().to(APPEND_UPLOAD_URL);
                 processedVideos.remove(key);
             }
         });
@@ -310,39 +351,29 @@ class BilibiliManager {
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
                 long totalSeconds = videoDuration(parsedVidPath);
 
-                Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
-                vidPathMatcher.find();
-
-                String videoName = vidPathMatcher.group(1);
-                String gameName = vidPathMatcher.group(2);
-                String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
-                ManageServer.executeCommand("mkdir -p " + processedPath + "; rm -f " + processedPath + "*");
-
-                LocalDateTime timePoint = LocalDateTime.of(
-                        Integer.parseInt(vidPathMatcher.group(3)),
-                        Integer.parseInt(vidPathMatcher.group(4)),
-                        Integer.parseInt(vidPathMatcher.group(5)),
-                        Integer.parseInt(vidPathMatcher.group(6)),
-                        Integer.parseInt(vidPathMatcher.group(7)),
-                        Integer.parseInt(vidPathMatcher.group(8))
-                );
-
                 long clipCount = 0;
-                long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
-                ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
-                String initParsedVidPath = parsedVidPath + ".done." + clipCount;
-                processedVideo.setOriginalVideoPath(initParsedVidPath);
-                processedVideos.put(gameName, processedVideo);
+                ProcessedVideo processedVideo = processedVideos.get(vidPath);
+                if (null == processedVideo) {
+                    processedVideo = new ProcessedVideo(vidPath, vidPathPattern);
+                    String initParsedVidPath = parsedVidPath + ".done." + clipCount;
+                    processedVideo.setOriginalVideoPath(initParsedVidPath);
+                    processedVideos.put(vidPath, processedVideo);
+                }
 
                 long startPos = 0;
                 String lastProcessedClipPath;
                 do {
-                    lastProcessedClipPath = processedPath + "part" + (++clipCount) + "." + OUTPUT_FORMAT;
+                    lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -i " + parsedVidPath
                             + " -ss " + startPos
+                            + " -r " + FPS
+                            + " -b " + BIT_RATE + "k"
+                            + " -minrate " + BIT_RATE + "k"
+                            + " -maxrate " + BIT_RATE + "k"
+                            + " -bufsize " + BIT_RATE + "k"
+                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
                             + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
-                            + " -ar 44100"
                             + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
                             + " " + lastProcessedClipPath;
@@ -371,7 +402,7 @@ class BilibiliManager {
                 processedVideo.setOriginalVideoPath(finalParsedVidPath);
                 ManageServer.executeCommand("mv " + parsedVidPath + " " + finalParsedVidPath);
 
-                System.out.println(gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+                System.out.println(processedVideo.gameName + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -409,8 +440,10 @@ class BilibiliManager {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+        }
         });
+
+        Collections.sort(vidsList);
 
         return vidsList;
     }
@@ -455,33 +488,20 @@ class BilibiliManager {
         for (String pendingUploadVid : pendingUploadVids) {
             System.out.println("init pending upload vid: " + pendingUploadVid);
             Matcher vidPathMatcher = processedVidPathPattern.matcher(pendingUploadVid);
-            vidPathMatcher.find();
+            if (!vidPathMatcher.find()) {
+                continue;
+            }
 
-            String videoName = vidPathMatcher.group(1);
-            String gameName = vidPathMatcher.group(2);
-
-            String processedPath = "/root/vids/processed/" + gameName.replaceAll(replaceSpace, "\\\\ ") + "/" + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";
-
-            LocalDateTime timePoint = LocalDateTime.of(
-                    Integer.parseInt(vidPathMatcher.group(3)),
-                    Integer.parseInt(vidPathMatcher.group(4)),
-                    Integer.parseInt(vidPathMatcher.group(5)),
-                    Integer.parseInt(vidPathMatcher.group(6)),
-                    Integer.parseInt(vidPathMatcher.group(7)),
-                    Integer.parseInt(vidPathMatcher.group(8))
-            );
-
-            long videoCreateTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
-            ProcessedVideo processedVideo = new ProcessedVideo(videoCreateTime, gameName, processedPath);
+            ProcessedVideo processedVideo = new ProcessedVideo(pendingUploadVid, processedVidPathPattern);
             processedVideo.setOriginalVideoPath(pendingUploadVid.replaceAll(replaceSpace, "\\\\ "));
 
             int clipCount = Integer.parseInt(vidPathMatcher.group(11));
-            String uploadRootPath = processedPath.replaceAll("\\\\", "");
+            String uploadRootPath = processedVideo.processedPath.replaceAll("\\\\", "");
             for (int i = 0; i < clipCount; i++) {
-                processedVideo.addClipPath(uploadRootPath + "part" + (i + 1) + "." + OUTPUT_FORMAT);
+                processedVideo.addClipPath(uploadRootPath + processedVideo.uuid() + "-" + (i + 1) + "." + OUTPUT_FORMAT);
             }
 
-            processedVideos.put(gameName, processedVideo);
+            processedVideos.put(processedVideo.videoName, processedVideo);
         }
         System.out.println();
     }
