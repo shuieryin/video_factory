@@ -51,9 +51,9 @@ class BilibiliManager {
 
     private static final int WIDTH_SIZE = 720;
     private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 192;
-    private static final int BIT_RATE = 2500;
-    private static final int FPS = 30;
+    private static final int AUDIO_BIT_RATE = 189;
+    private static final int BIT_RATE = 7933;
+    // private static final int FPS = 30;
 
     private String uid;
     private WebDriver driver;
@@ -421,7 +421,7 @@ class BilibiliManager {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -i " + parsedVidPath
                             + " -ss " + startPos
-                            + " -r " + FPS
+                            // + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
