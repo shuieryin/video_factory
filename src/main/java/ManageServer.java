@@ -26,6 +26,8 @@ public class ManageServer extends NanoHTTPD {
 
     // TODO check what is uploading and show uploading video list
     private static String OS = System.getProperty("os.name").toLowerCase();
+    @SuppressWarnings("WeakerAccess")
+    static final String ROOT_PATH = "/root/Documents/";
     private static final String DRIVER_NAME = "geckodriver";
     private static final int SCHEDULE_INTERVAL_MINUTES = 1; // 5
     private String driverPath;
@@ -113,6 +115,7 @@ public class ManageServer extends NanoHTTPD {
                 }
 
                 executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox|ffmpeg')");
+                executeCommand("rm " + ROOT_PATH + "core.*; rm " + ROOT_PATH + "*.log; rm " + ROOT_PATH + "*driver");
                 FileUtils.forceDelete(new File(driverPath));
                 System.out.println("turned off");
             } catch (IOException e) {

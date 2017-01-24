@@ -46,11 +46,9 @@ class ProcessedVideo {
             String firstCap = "", firstLow = "";
             long digestNumberTotal = 0;
             String finalHex = Base64.encode(md5.digest());
-            System.out.println(finalHex);
             char[] digestedChars = finalHex.toCharArray();
             for (char aChar : digestedChars) {
                 int charNum = (int) aChar;
-                System.out.println("charNum: " + charNum);
                 digestNumberTotal += (int) aChar;
 
                 if (Character.isLetter(aChar)) {
@@ -64,8 +62,7 @@ class ProcessedVideo {
                 }
             }
 
-            long currentTotal = 0;
-            System.out.println("currentTotal: " + digestNumberTotal);
+            long currentTotal;
             while (digestNumberTotal >= 10) {
                 currentTotal = 0;
                 for (char digitChar : String.valueOf(digestNumberTotal).toCharArray()) {
@@ -73,10 +70,8 @@ class ProcessedVideo {
                 }
                 digestNumberTotal = currentTotal;
             }
-            System.out.println("finalcurrentTotal: " + currentTotal);
 
             uuid = firstLow + digestNumberTotal + firstCap;
-            System.out.println("vidPath: " + vidPath);
             System.out.println("uuid: " + uuid);
         } catch (Exception e) {
             e.printStackTrace();

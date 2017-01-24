@@ -5,6 +5,7 @@ import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -21,7 +22,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -59,7 +59,7 @@ class BilibiliManager {
     private WebDriver driver;
     private WebDriverWait wait;
     Thread uploadThread;
-    private Map<String, ProcessedVideo> processedVideos = new HashMap<>();
+    private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
     BilibiliManager(String Uid) throws InterruptedException, IOException {
         this.uid = Uid;
@@ -69,7 +69,7 @@ class BilibiliManager {
         updateExpireTime();
 
         driver = new FirefoxDriver();
-        wait = new WebDriverWait(driver, 20);
+        wait = new WebDriverWait(driver, 10);
         driver.navigate().to(LOGON_URL);
 
         initUploadVideo();
@@ -80,7 +80,7 @@ class BilibiliManager {
         if (!APPEND_UPLOAD_URL.equalsIgnoreCase(driver.getCurrentUrl())) {
             driver.navigate().to(APPEND_UPLOAD_URL);
         }
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.className("footer-wrp")));
 
         return driver.findElements(By.className("search-wrp")).size() > 0;
     }
@@ -94,7 +94,7 @@ class BilibiliManager {
         String status = "";
         if (null != uploadThread && uploadThread.isAlive()) {
             status = "existing_video_being_uploaded";
-        } else if (processedVideos.isEmpty()) {
+        } else if (processedGames.isEmpty()) {
             status = "no_processed_vids";
         } else if (!isLoggedOnForUpload()) {
             status = "please_login_bilibili";
@@ -106,51 +106,58 @@ class BilibiliManager {
 
         status = "bilibili_upload_started";
         uploadThread = new Thread(() -> {
-            System.out.println("processedVideos size: " + processedVideos.size());
-            String lastGameName = "";
-            for (String key : processedVideos.keySet()) {
-                ProcessedVideo processedVideo = processedVideos.get(key);
+            System.out.println("processedGames size: " + processedGames.size());
+            for (String processedGameName : processedGames.keySet()) {
+                ProcessedGame processedGame = processedGames.get(processedGameName);
 
-                if (processedVideo.clipPaths().isEmpty()) {
-                    System.out.println("processedVideo.clipPaths().isEmpty");
-                    continue;
-                }
+                int finalClipCount;
+                int uploadedClipCount;
+                int uploadingCount;
+                boolean isGameProcessed = true;
 
-                System.out.println("processedVideo is not empty");
+                List<String> tabs = new ArrayList<>(driver.getWindowHandles());
+                driver.navigate().to(APPEND_UPLOAD_URL);
+                WebElement searchSection = wait.until(ExpectedConditions.presenceOfElementLocated(By.className("search-wrp")));
+                CommonUtils.scrollToElement(driver, searchSection);
+                WebElement searchStory = searchSection.findElement(By.tagName("input"));
+                searchStory.clear();
+                searchStory.sendKeys(processedGame.gameName() + Keys.ENTER);
 
                 boolean isNewStory = false;
-                List<String> tabs = new ArrayList<> (driver.getWindowHandles());
-                if (!lastGameName.equals(processedVideo.gameName())) {
-                    driver.navigate().to(APPEND_UPLOAD_URL);
-                    WebElement searchSection = wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("search-wrp")));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", searchSection);
-                    WebElement searchStory = searchSection.findElement(By.tagName("input"));
-                    searchStory.clear();
-                    searchStory.sendKeys(processedVideo.gameName() + Keys.ENTER);
-
-                    try {
-                        WebElement existingStoryLink = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
-                        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", existingStoryLink);
-                        existingStoryLink.click();
-                        driver.switchTo().window(tabs.get(1));
-                    } catch (Exception e) {
-                        driver.navigate().to(UPLOAD_URL);
-                        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("home-hint")));
-                        isNewStory = true;
-                    }
+                try {
+                    WebElement existingStoryLink = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
+                    CommonUtils.scrollToElement(driver, existingStoryLink);
+                    existingStoryLink.click();
+                    CommonUtils.wait(1000, driver);
+                    driver.switchTo().window(tabs.get(0));
+                    driver.close();
+                    //driver.switchTo().window(tabs.get(1));
+                } catch (Exception e) {
+                    driver.navigate().to(UPLOAD_URL);
+                    wait.until(ExpectedConditions.presenceOfElementLocated(By.className("home-hint")));
+                    isNewStory = true;
                 }
 
-                int finalClipCount = parseClipCount(processedVideo);
-                int uploadedClipCount = 0;
-                Set<String> existingClips = new HashSet<>();
-                while (finalClipCount == 0 || finalClipCount != uploadedClipCount) {
-                    System.out.println();
-                    System.out.println("Tracking upload status...");
+                Set<String> addedToUploadClips = new HashSet<>();
+                do {
+                    finalClipCount = 0;
+                    uploadedClipCount = 0;
+                    uploadingCount = 0;
+
+                    Map<String, ProcessedVideo> processedVideos = processedGame.processedVideos();
+                    for (ProcessedVideo processedVideo : processedVideos.values()) {
+                        int curClipCount = parseClipCount(processedVideo);
+
+                        if (curClipCount == 0) {
+                            isGameProcessed = false;
+                        }
+
+                        finalClipCount += curClipCount;
+                    }
+
+                    List<WebElement> uploadsStatuses = driver.findElements(By.className("upload-status"));
+                    System.out.println("uploadsStatuses size: " + uploadsStatuses.size());
                     try {
-                        int uploadingCount = 0;
-                        uploadedClipCount = 0;
-                        List<WebElement> uploadsStatuses = driver.findElements(By.className("upload-status"));
-                        System.out.println("uploadsStatuses size: " + uploadsStatuses.size());
                         for (WebElement uploadStatus : uploadsStatuses) {
                             String statusStr = uploadStatus.getText();
                             if (null == statusStr) {
@@ -165,51 +172,79 @@ class BilibiliManager {
                                 uploadedClipCount++;
                             }
                         }
+                    } catch (Exception e) {
+                        System.out.println("Tracking status error:");
+                        e.printStackTrace();
+                    }
 
-                        System.out.println("finalClipCount: " + finalClipCount);
-                        System.out.println("uploadingCount: " + uploadingCount);
-                        System.out.println("uploadedClipCount: " + uploadedClipCount);
+                    System.out.println();
+                    System.out.println("Tracking upload status...");
+                    System.out.println("finalClipCount: " + finalClipCount);
+                    System.out.println("uploadingCount: " + uploadingCount);
+                    System.out.println("uploadedClipCount: " + uploadedClipCount);
+                    System.out.println("Tracked");
+                    System.out.println();
+
+                    for (String key : processedVideos.keySet()) {
+                        ProcessedVideo processedVideo = processedVideos.get(key);
+
+                        if (processedVideo.clipPaths().isEmpty()) {
+                            continue;
+                        }
 
                         for (String targetUploadClipPath : processedVideo.clipPaths()) {
-                            if (existingClips.contains(targetUploadClipPath)) {
+                            if (addedToUploadClips.contains(targetUploadClipPath)) {
                                 continue;
                             }
 
                             if (uploadingCount < CLIP_AMOUNT_PER_BATCH) {
                                 System.out.println("targetUploadClipPath: " + targetUploadClipPath);
                                 WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
-                                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", uploadInput);
+                                CommonUtils.scrollToElement(driver, uploadInput);
                                 uploadInput.sendKeys(targetUploadClipPath);
-                                existingClips.add(targetUploadClipPath);
+                                addedToUploadClips.add(targetUploadClipPath);
                                 uploadingCount++;
-                                TimeUnit.SECONDS.sleep(2);
+                                CommonUtils.wait(2000, driver);
                             }
                         }
 
-                        finalClipCount = parseClipCount(processedVideo);
-                    } catch (Exception e) {
-                        System.out.println();
-                        System.out.println("Errors during tracking update status:");
-                        e.printStackTrace();
-                        System.out.println();
-                    }
+                        CommonUtils.wait(5000, driver);
 
-                    System.out.println("Tracked");
-                    System.out.println();
-                    try {
-                        TimeUnit.SECONDS.sleep(5);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        // submitMoreButton.click();
                     }
-                }
+                } while (!isGameProcessed || uploadingCount != 0 || finalClipCount != uploadedClipCount);
 
                 if (isNewStory) {
-                    WebElement selfMadeRadio = driver.findElement(By.cssSelector("input[name=\"copyright\"]"));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", selfMadeRadio);
+//                    WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
+//                    CommonUtils.scrollToElement(driver, uploadInput);
+//                    uploadInput.sendKeys(ManageServer.ROOT_PATH + "mock.mp4");
+//
+//                    try {
+//                        WebElement dataAlertHideButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("button[data-alert-hide]")));
+//                        CommonUtils.scrollToElement(driver, dataAlertHideButton);
+//                        dataAlertHideButton.click();
+//                    } catch (Exception e) {
+//                        System.out.println("No data alert hide button");
+//                    }
+//
+//                    WebElement delIcon = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("i[class=\"icon icon-cancel\"]")));
+//                    CommonUtils.scrollToTop(driver);
+//                    Actions action = new Actions(driver);
+//                    action.moveToElement(delIcon).build().perform();
+//                    CommonUtils.wait(500, driver);
+//                    // CommonUtils.scrollToElement(driver, delIcon);
+//                    delIcon.click();
+//
+//                    WebElement delButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("button[data-del-upload]")));
+//                    CommonUtils.scrollToElement(driver, delButton);
+//                    delButton.click();
+
+                    WebElement selfMadeRadio = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name=\"copyright\"]")));
+                    CommonUtils.scrollToElement(driver, selfMadeRadio);
                     selfMadeRadio.click();
 
                     WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", categorySection);
+                    CommonUtils.scrollToElement(driver, categorySection);
 
                     List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
 
@@ -226,40 +261,35 @@ class BilibiliManager {
                     }
 
                     WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", titleField);
+                    CommonUtils.scrollToElement(driver, titleField);
                     titleField.clear();
-                    titleField.sendKeys(processedVideo.videoName());
+                    titleField.sendKeys(processedGame.gameName());
 
-                    WebElement tagsField = driver.findElement(By.cssSelector("input[placeholder=\"Press enter to finish.\"]"));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", tagsField);
-                    for (String tag : processedVideo.gameName().split(" ")) {
+                    WebElement tagsSection = driver.findElement(By.cssSelector("div[class=\"recommend-wrp\"]"));
+                    WebElement tagsField = tagsSection.findElement(By.tagName("input"));
+                    CommonUtils.scrollToElement(driver, tagsField);
+                    for (String tag : processedGame.gameName().split(" ")) {
                         tagsField.sendKeys(tag + Keys.ENTER);
                     }
-                    tagsField.sendKeys(processedVideo.gameName() + Keys.ENTER);
+                    tagsField.sendKeys(processedGame.gameName() + Keys.ENTER);
 
-                    WebElement descSection = driver.findElement(By.className("section template-description-wrp"));
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", descSection);
+                    WebElement descSection = driver.findElement(By.className("description-wrp"));
                     WebElement descField = descSection.findElement(By.tagName("textarea"));
-                    descField.sendKeys(processedVideo.gameName());
+                    CommonUtils.scrollToElement(driver, descField);
+                    descField.sendKeys(processedGame.gameName());
                 }
 
                 WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
-                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", submitButton);
+                CommonUtils.scrollToElement(driver, submitButton);
                 submitButton.click();
 
-                wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
-                processedVideo.uploadDone();
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
 
-                if (!isNewStory) {
-                    driver.close();
-                    driver.switchTo().window(tabs.get(0));
+                for (ProcessedVideo processedVideo : processedGame.processedVideos().values()) {
+                    processedVideo.uploadDone();
                 }
 
-                lastGameName = processedVideo.gameName();
-
-                // submitMoreButton.click();
-
-                processedVideos.remove(key);
+                processedGames.remove(processedGameName);
             }
         });
 
@@ -278,7 +308,7 @@ class BilibiliManager {
         logonForm.submit();
 
         wait.until(ExpectedConditions.invisibilityOfElementLocated(By.id("vdCodeTxt")));
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.className("footer-wrp")));
 
         return isLoggedOnForUpload();
     }
@@ -288,7 +318,7 @@ class BilibiliManager {
             driver.navigate().to(LOGON_URL);
         }
 
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.className("footer-wrp")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.className("footer-wrp")));
         if (driver.findElements(By.id("b_live")).size() > 0) {
             return true;
         }
@@ -311,8 +341,8 @@ class BilibiliManager {
     }
 
     private File captchaImage() throws IOException {
-        WebElement captchaImg = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("captchaImg")));
-        driver.manage().timeouts().implicitlyWait(500L, TimeUnit.MICROSECONDS);
+        WebElement captchaImg = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("captchaImg")));
+        CommonUtils.wait(500, driver);
 
         File captchaImgFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
         FileUtils.copyFile(captchaImgFile, new File(CAPTCHA_IMG_PATH));
@@ -365,12 +395,24 @@ class BilibiliManager {
                 long totalSeconds = videoDuration(parsedVidPath);
 
                 long clipCount = 0;
+
+                Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
+                String gameName = vidPathMatcher.group(2);
+
+                ProcessedGame processedGame = processedGames.get(gameName);
+                if (null == processedGame) {
+                    processedGame = new ProcessedGame(gameName);
+                    processedGames.put(gameName, processedGame);
+                }
+
+                Map<String, ProcessedVideo> processedVideos = processedGame.processedVideos();
                 ProcessedVideo processedVideo = processedVideos.get(vidPath);
                 if (null == processedVideo) {
                     processedVideo = new ProcessedVideo(vidPath, vidPathPattern);
                     String initParsedVidPath = parsedVidPath + ".done." + clipCount;
                     processedVideo.setOriginalVideoPath(initParsedVidPath);
                     processedVideos.put(vidPath, processedVideo);
+                    processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
                 long startPos = 0;
@@ -453,7 +495,7 @@ class BilibiliManager {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-        }
+            }
         });
 
         Collections.sort(vidsList);
@@ -505,6 +547,13 @@ class BilibiliManager {
                 continue;
             }
 
+            String gameName = vidPathMatcher.group(2);
+            ProcessedGame processedGame = processedGames.get(gameName);
+            if (null == processedGame) {
+                processedGame = new ProcessedGame(gameName);
+                processedGames.put(gameName, processedGame);
+            }
+
             ProcessedVideo processedVideo = new ProcessedVideo(pendingUploadVid, processedVidPathPattern);
             processedVideo.setOriginalVideoPath(pendingUploadVid.replaceAll(replaceSpace, "\\\\ "));
 
@@ -514,7 +563,7 @@ class BilibiliManager {
                 processedVideo.addClipPath(uploadRootPath + processedVideo.uuid() + "-" + (i + 1) + "." + OUTPUT_FORMAT);
             }
 
-            processedVideos.put(processedVideo.videoName(), processedVideo);
+            processedGame.addProcessedVideo(pendingUploadVid, processedVideo);
         }
         System.out.println();
     }

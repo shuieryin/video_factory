@@ -52,19 +52,20 @@ class NetworkManager {
                 List<WebElement> passwordField;
                 while ((passwordField = driver.findElements(By.id("lgPwd"))).size() < 1) {
                     driver.navigate().to(GATEWAY_URL);
-                    TimeUnit.SECONDS.sleep(3);
+                    CommonUtils.wait(3000, driver);
                 }
 
                 passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
 
                 WebElement logonButton = driver.findElement(By.id("loginSub"));
                 logonButton.click();
-                TimeUnit.SECONDS.sleep(1);
+                CommonUtils.wait(1000, driver);
             } while (driver.findElements(By.id("loginError")).size() > 0);
 
             WebElement deviceManageButton;
             try {
-                deviceManageButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("routeMgtMbtn")));
+                deviceManageButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("routeMgtMbtn")));
+                CommonUtils.scrollToElement(driver, deviceManageButton);
                 deviceManageButton.click();
             } catch (Exception e) {
                 reachDeviceInfoPage();
@@ -93,9 +94,10 @@ class NetworkManager {
 
         reachDeviceInfoPage();
 
-        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, 0);");
+        CommonUtils.scrollToTop(driver);
 
-        WebElement deviceTable = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngRCon")));
+        WebElement deviceTable = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("eptMngRCon")));
+        CommonUtils.scrollToElement(driver, deviceTable);
         Elements deviceInfos;
         do {
             String deviceTableHtmlStr = deviceTable.getText();
@@ -130,7 +132,7 @@ class NetworkManager {
 
         clickManage();
 
-        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngDetail")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("eptMngDetail")));
 
         if (totalUploadKiloBytes == 0 && totalDownloadKiloBytes == 0) {
             currentSpeed = currentSpeed < MAX_UPLOAD_SPEED ? currentSpeed + PER_SPEED_UP : MAX_UPLOAD_SPEED;
@@ -167,7 +169,7 @@ class NetworkManager {
         while (!driver.findElement(By.id("eptMngList")).isDisplayed()) {
             WebElement backToDeviceInfo = driver.findElement(By.id("linkedEpt_rsMenu"));
             backToDeviceInfo.click();
-            TimeUnit.SECONDS.sleep(1);
+            CommonUtils.wait(1000, driver);
         }
     }
 
@@ -178,8 +180,7 @@ class NetworkManager {
             WebElement parent = targetDevice.findElement(By.xpath(".."));
             WebElement targetDeviceButtons = parent.findElement(By.xpath("following-sibling::*[4]"));
             WebElement manageButton = targetDeviceButtons.findElement(By.tagName("input"));
-            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", manageButton);
-            TimeUnit.MILLISECONDS.sleep(200);
+            CommonUtils.scrollToElement(driver, manageButton);
             manageButton.click();
         } catch (Exception e) {
             clickManage();
