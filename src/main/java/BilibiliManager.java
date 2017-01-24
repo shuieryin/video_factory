@@ -5,7 +5,6 @@ import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -28,7 +27,7 @@ import java.util.stream.Stream;
 
 class BilibiliManager {
 
-    private static final String OUTPUT_FORMAT = "flv";
+    private static final String OUTPUT_FORMAT = "mp4";
     private static final String LOGON_URL = "https://passport.bilibili.com/login";
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
@@ -51,7 +50,7 @@ class BilibiliManager {
 
     private static final int WIDTH_SIZE = 720;
     private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 189;
+    // private static final int AUDIO_BIT_RATE = 189;
     private static final int BIT_RATE = 7933;
     // private static final int FPS = 30;
 
@@ -426,7 +425,7 @@ class BilibiliManager {
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
-                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
+                            // + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
                             + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -crf " + CRF
