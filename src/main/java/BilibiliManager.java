@@ -2,6 +2,10 @@ import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.openqa.selenium.*;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -50,9 +54,9 @@ class BilibiliManager {
 
     private static final int WIDTH_SIZE = 720;
     private static final int CRF = 5;
-    // private static final int AUDIO_BIT_RATE = 189;
-    private static final int BIT_RATE = 7933;
-    // private static final int FPS = 30;
+    private static final int AUDIO_BIT_RATE = 192;
+    private static final int BIT_RATE = 9000;
+    private static final int FPS = 30;
 
     private String uid;
     private WebDriver driver;
@@ -114,7 +118,6 @@ class BilibiliManager {
                 int uploadingCount;
                 boolean isGameProcessed = true;
 
-                List<String> tabs = new ArrayList<>(driver.getWindowHandles());
                 driver.navigate().to(APPEND_UPLOAD_URL);
                 WebElement searchSection = wait.until(ExpectedConditions.presenceOfElementLocated(By.className("search-wrp")));
                 CommonUtils.scrollToElement(driver, searchSection);
@@ -125,12 +128,9 @@ class BilibiliManager {
                 boolean isNewStory = false;
                 try {
                     WebElement existingStoryLink = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[class=\"edit item\"]")));
-                    CommonUtils.scrollToElement(driver, existingStoryLink);
-                    existingStoryLink.click();
+                    String editLink = existingStoryLink.getAttribute("href");
+                    driver.navigate().to(editLink);
                     CommonUtils.wait(1000, driver);
-                    driver.switchTo().window(tabs.get(0));
-                    driver.close();
-                    //driver.switchTo().window(tabs.get(1));
                 } catch (Exception e) {
                     driver.navigate().to(UPLOAD_URL);
                     wait.until(ExpectedConditions.presenceOfElementLocated(By.className("home-hint")));
@@ -154,35 +154,9 @@ class BilibiliManager {
                         finalClipCount += curClipCount;
                     }
 
-                    List<WebElement> uploadsStatuses = driver.findElements(By.className("upload-status"));
-                    System.out.println("uploadsStatuses size: " + uploadsStatuses.size());
-                    try {
-                        for (WebElement uploadStatus : uploadsStatuses) {
-                            String statusStr = uploadStatus.getText();
-                            if (null == statusStr) {
-                                System.out.println("statusStr is null");
-                                continue;
-                            }
-                            if (uploadingPattern.matcher(statusStr).find()) {
-                                uploadingCount++;
-                            }
-
-                            if (uploadCompletePattern.matcher(statusStr).find()) {
-                                uploadedClipCount++;
-                            }
-                        }
-                    } catch (Exception e) {
-                        System.out.println("Tracking status error:");
-                        e.printStackTrace();
-                    }
-
-                    System.out.println();
-                    System.out.println("Tracking upload status...");
-                    System.out.println("finalClipCount: " + finalClipCount);
-                    System.out.println("uploadingCount: " + uploadingCount);
-                    System.out.println("uploadedClipCount: " + uploadedClipCount);
-                    System.out.println("Tracked");
-                    System.out.println();
+                    int[] uploadStatus = trackUploadStatus(uploadingCount, uploadedClipCount);
+                    uploadingCount = uploadStatus[0];
+                    uploadedClipCount = uploadStatus[1];
 
                     for (String key : processedVideos.keySet()) {
                         ProcessedVideo processedVideo = processedVideos.get(key);
@@ -197,7 +171,14 @@ class BilibiliManager {
                             }
 
                             if (uploadingCount < CLIP_AMOUNT_PER_BATCH) {
+                                System.out.println();
+                                System.out.println("Tracking upload status...");
+                                System.out.println("finalClipCount: " + finalClipCount);
+                                System.out.println("uploadingCount: " + uploadingCount);
+                                System.out.println("uploadedClipCount: " + uploadedClipCount);
                                 System.out.println("targetUploadClipPath: " + targetUploadClipPath);
+                                System.out.println("Tracked");
+                                System.out.println();
                                 WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
                                 CommonUtils.scrollToElement(driver, uploadInput);
                                 uploadInput.sendKeys(targetUploadClipPath);
@@ -207,10 +188,12 @@ class BilibiliManager {
                             }
                         }
 
-                        CommonUtils.wait(5000, driver);
+                        CommonUtils.wait(3000, driver);
 
                         // submitMoreButton.click();
                     }
+
+                    CommonUtils.wait(5000, driver);
                 } while (!isGameProcessed || uploadingCount != 0 || finalClipCount != uploadedClipCount);
 
                 if (isNewStory) {
@@ -392,10 +375,17 @@ class BilibiliManager {
                 System.out.println("vidPath: " + vidPath);
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
                 long totalSeconds = videoDuration(parsedVidPath);
+                if (0 == totalSeconds) {
+                    continue;
+                }
 
                 long clipCount = 0;
 
                 Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
+                if (!vidPathMatcher.find()) {
+                    System.out.println("vidPath not found: " + vidPath);
+                    continue;
+                }
                 String gameName = vidPathMatcher.group(2);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
@@ -418,14 +408,15 @@ class BilibiliManager {
                 String lastProcessedClipPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
+                    ManageServer.executeCommand("rm -f " + lastProcessedClipPath);
                     String command = "ffmpeg -i " + parsedVidPath
                             + " -ss " + startPos
-                            // + " -r " + FPS
+                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
-                            // + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
+                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
                             + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -crf " + CRF
@@ -506,7 +497,9 @@ class BilibiliManager {
         String timeOutput = ManageServer.executeCommand("ffmpeg -i " + vidPath + " 2>&1 | grep Duration | grep -oP \"^\\s*Duration:\\s*\\K(\\S+),\" | cut -c 1-11");
 
         Matcher timerMatcher = timePattern.matcher(timeOutput);
-        timerMatcher.find();
+        if (!timerMatcher.find()) {
+            return 0;
+        }
         int vidHour = Integer.parseInt(timerMatcher.group(1));
         int vidMinutes = Integer.parseInt(timerMatcher.group(2));
         int vidSeconds = Integer.parseInt(timerMatcher.group(3));
@@ -627,5 +620,42 @@ class BilibiliManager {
         Matcher vidPathMatcher = processedVidPathPattern.matcher(processedVideo.originalVideoPath().replaceAll("\\\\ ", " "));
         vidPathMatcher.find();
         return Integer.parseInt(vidPathMatcher.group(11));
+    }
+
+    private int[] trackUploadStatus(int uploadingCount, int uploadedClipCount) {
+        Elements uploadStatuses;
+        try {
+            do {
+                WebElement uploadList = driver.findElement(By.id("sortWrp"));
+                Document deviceTableDom = Jsoup.parse(uploadList.getAttribute("innerHTML"));
+                uploadStatuses = deviceTableDom.getElementsByClass("upload-status");
+                CommonUtils.wait(1000, driver);
+            } while (uploadStatuses.isEmpty());
+
+            for (Element uploadStatus : uploadStatuses) {
+                String statusStr = uploadStatus.html();
+                if (null == statusStr) {
+                    System.out.println("statusStr is null");
+                    continue;
+                }
+                if (uploadingPattern.matcher(statusStr).find()) {
+                    uploadingCount++;
+                }
+
+                if (uploadCompletePattern.matcher(statusStr).find()) {
+                    uploadedClipCount++;
+                }
+            }
+        } catch (StaleElementReferenceException e) {
+            System.out.println("Lost statuses, retrying again");
+            trackUploadStatus(uploadingCount, uploadedClipCount);
+        } catch (Exception e) {
+            System.out.println("Tracking status error:");
+            e.printStackTrace();
+        }
+
+        //noinspection UnnecessaryLocalVariable
+        int[] ret = {uploadingCount, uploadedClipCount};
+        return ret;
     }
 }

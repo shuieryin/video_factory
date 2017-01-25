@@ -100,6 +100,7 @@ class ProcessedVideo {
         ManageServer.executeCommand("mv " + originalVideoPath + " " + originalVideoPath + ".uploaded");
     }
 
+    @SuppressWarnings("unused")
     String videoName() {
         return videoName;
     }

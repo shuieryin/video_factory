@@ -48,26 +48,31 @@ class NetworkManager {
 
     private void reachDeviceInfoPage() throws InterruptedException, IOException {
         if (driver.findElements(By.id("eptMngRCon")).size() < 1) {
-            do {
-                List<WebElement> passwordField;
-                while ((passwordField = driver.findElements(By.id("lgPwd"))).size() < 1) {
-                    driver.navigate().to(GATEWAY_URL);
-                    CommonUtils.wait(3000, driver);
-                }
-
-                passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
-
-                WebElement logonButton = driver.findElement(By.id("loginSub"));
-                logonButton.click();
-                CommonUtils.wait(1000, driver);
-            } while (driver.findElements(By.id("loginError")).size() > 0);
-
-            WebElement deviceManageButton;
             try {
-                deviceManageButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("routeMgtMbtn")));
+                do {
+                    List<WebElement> passwordField;
+                    while ((passwordField = driver.findElements(By.id("lgPwd"))).size() < 1) {
+                        driver.navigate().to(GATEWAY_URL);
+                        CommonUtils.wait(2000, driver);
+                    }
+
+                    CommonUtils.wait(1000, driver);
+                    passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
+
+                    WebElement logonButton = driver.findElement(By.id("loginSub"));
+                    CommonUtils.scrollToElement(driver, logonButton);
+                    logonButton.click();
+                    CommonUtils.wait(1000, driver);
+                } while (driver.findElements(By.id("loginError")).size() > 0);
+
+                WebElement deviceManageButton;
+
+                deviceManageButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("routeMgtMbtn")));
                 CommonUtils.scrollToElement(driver, deviceManageButton);
                 deviceManageButton.click();
             } catch (Exception e) {
+                CommonUtils.wait(2000, driver);
+                System.out.println("reachDeviceInfoPage error:");
                 reachDeviceInfoPage();
             }
         }
@@ -96,13 +101,14 @@ class NetworkManager {
 
         CommonUtils.scrollToTop(driver);
 
-        WebElement deviceTable = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("eptMngRCon")));
+        WebElement deviceTable = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngRCon")));
         CommonUtils.scrollToElement(driver, deviceTable);
         Elements deviceInfos;
         do {
-            String deviceTableHtmlStr = deviceTable.getText();
+            String deviceTableHtmlStr = deviceTable.getAttribute("innerHTML");
             Document deviceTableDom = Jsoup.parse(deviceTableHtmlStr);
             deviceInfos = deviceTableDom.getElementsByClass("vs");
+            CommonUtils.wait(1000, driver);
         } while (deviceInfos.isEmpty());
 
         long totalUploadKiloBytes = 0;
@@ -132,7 +138,7 @@ class NetworkManager {
 
         clickManage();
 
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("eptMngDetail")));
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngDetail")));
 
         if (totalUploadKiloBytes == 0 && totalDownloadKiloBytes == 0) {
             currentSpeed = currentSpeed < MAX_UPLOAD_SPEED ? currentSpeed + PER_SPEED_UP : MAX_UPLOAD_SPEED;
