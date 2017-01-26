@@ -53,10 +53,9 @@ class NetworkManager {
                     List<WebElement> passwordField;
                     while ((passwordField = driver.findElements(By.id("lgPwd"))).size() < 1) {
                         driver.navigate().to(GATEWAY_URL);
-                        CommonUtils.wait(2000, driver);
+                        CommonUtils.wait(10000, driver);
                     }
 
-                    CommonUtils.wait(1000, driver);
                     passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
 
                     WebElement logonButton = driver.findElement(By.id("loginSub"));
@@ -71,8 +70,9 @@ class NetworkManager {
                 CommonUtils.scrollToElement(driver, deviceManageButton);
                 deviceManageButton.click();
             } catch (Exception e) {
-                CommonUtils.wait(2000, driver);
+                CommonUtils.wait(5000, driver);
                 System.out.println("reachDeviceInfoPage error:");
+                e.printStackTrace();
                 reachDeviceInfoPage();
             }
         }
