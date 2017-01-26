@@ -53,9 +53,9 @@ class BilibiliManager {
     private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
 
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 5;
+    private static final int CRF = 10;
     private static final int AUDIO_BIT_RATE = 192;
-    private static final int BIT_RATE = 9000;
+    private static final int BIT_RATE = 10500;
     private static final int FPS = 30;
 
     private String uid;
@@ -116,7 +116,7 @@ class BilibiliManager {
                 int finalClipCount;
                 int uploadedClipCount;
                 int uploadingCount;
-                boolean isGameProcessed = true;
+                boolean isGameProcessed;
 
                 driver.navigate().to(APPEND_UPLOAD_URL);
                 WebElement searchSection = wait.until(ExpectedConditions.presenceOfElementLocated(By.className("search-wrp")));
@@ -142,6 +142,7 @@ class BilibiliManager {
                     finalClipCount = 0;
                     uploadedClipCount = 0;
                     uploadingCount = 0;
+                    isGameProcessed = true;
 
                     Map<String, ProcessedVideo> processedVideos = processedGame.processedVideos();
                     for (ProcessedVideo processedVideo : processedVideos.values()) {
