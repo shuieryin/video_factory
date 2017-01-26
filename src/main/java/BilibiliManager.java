@@ -195,7 +195,7 @@ class BilibiliManager {
                     }
 
                     CommonUtils.wait(5000, driver);
-                } while (!isGameProcessed || uploadingCount != 0 || finalClipCount != uploadedClipCount);
+                } while (!isGameProcessed || uploadingCount > 0); // || finalClipCount != uploadedClipCount
 
                 if (isNewStory) {
 //                    WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
@@ -639,11 +639,10 @@ class BilibiliManager {
                     System.out.println("statusStr is null");
                     continue;
                 }
+
                 if (uploadingPattern.matcher(statusStr).find()) {
                     uploadingCount++;
-                }
-
-                if (uploadCompletePattern.matcher(statusStr).find()) {
+                } else if (uploadCompletePattern.matcher(statusStr).find()) {
                     uploadedClipCount++;
                 }
             }

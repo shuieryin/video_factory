@@ -80,9 +80,7 @@ class NetworkManager {
 
     void balanceUploadSpeed() throws InterruptedException, IOException {
         System.out.println();
-        System.out.println("Start balancing upload speed");
         boolean hasUploadThread = false;
-        System.out.println("Checking has existing upload thread");
         for (BilibiliManager bilibiliManager : ManageServer.bilibiliManagersMap.values()) {
             if (null != bilibiliManager.uploadThread && bilibiliManager.uploadThread.isAlive()) {
                 hasUploadThread = true;
@@ -95,13 +93,15 @@ class NetworkManager {
             return;
         }
 
-        System.out.println("Found upload thread, balancing upload speed");
-
         reachDeviceInfoPage();
 
         CommonUtils.scrollToTop(driver);
 
-        WebElement deviceTable = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngRCon")));
+        List<WebElement> deviceTables;
+        while ((deviceTables = driver.findElements(By.id("eptMngRCon"))).size() < 1) {
+            CommonUtils.wait(5000, driver);
+        }
+        WebElement deviceTable = deviceTables.get(0);
         CommonUtils.scrollToElement(driver, deviceTable);
         Elements deviceInfos;
         do {
@@ -117,7 +117,6 @@ class NetworkManager {
         for (Element deviceInfo : deviceInfos) {
             String deviceName = deviceInfo.previousSibling().childNode(0).attr("title");
             if ("GlServer".equals(deviceName)) {
-                System.out.println("Skip GlServer");
                 continue;
             }
 
@@ -132,9 +131,6 @@ class NetworkManager {
             totalUploadKiloBytes += parsedUploadSeed;
             totalDownloadKiloBytes += parsedDownloadSeed;
         }
-
-        System.out.println("totalUploadKiloBytes: " + totalUploadKiloBytes);
-        System.out.println("totalDownloadKiloBytes: " + totalDownloadKiloBytes);
 
         clickManage();
 
@@ -163,7 +159,6 @@ class NetworkManager {
 
             WebElement uploadSpeedLimitText = driver.findElement(By.cssSelector("input[class=\"speedLimit text\"]"));
             long existingSpeedLimit = Long.parseLong(uploadSpeedLimitText.getAttribute("value"));
-            System.out.println("existingSpeedLimit: " + existingSpeedLimit);
             if (currentSpeed != existingSpeedLimit) {
                 uploadSpeedLimitText.clear();
                 uploadSpeedLimitText.sendKeys(String.valueOf(currentSpeed) + Keys.ENTER);
@@ -181,7 +176,6 @@ class NetworkManager {
 
     private void clickManage() {
         try {
-            System.out.println("clicking manage button");
             WebElement targetDevice = driver.findElement(By.cssSelector("span[title=\"" + "GlServer" + "\"]"));
             WebElement parent = targetDevice.findElement(By.xpath(".."));
             WebElement targetDeviceButtons = parent.findElement(By.xpath("following-sibling::*[4]"));
@@ -191,8 +185,6 @@ class NetworkManager {
         } catch (Exception e) {
             clickManage();
         }
-
-        System.out.println("manage button clicked");
     }
 
     private long parseByte(String rawStr) {
