@@ -53,9 +53,9 @@ class BilibiliManager {
     private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
 
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 15;
+    private static final int CRF = 18;
     private static final int AUDIO_BIT_RATE = 190;
-    private static final int BIT_RATE = 12000;
+    private static final int BIT_RATE = 15000;
     private static final int FPS = 50;
 
     private String uid;
