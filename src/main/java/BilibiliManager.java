@@ -263,10 +263,14 @@ class BilibiliManager {
                 }
 
                 WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
-                CommonUtils.scrollToElement(driver, submitButton);
-                submitButton.click();
+                do {
+                    CommonUtils.scrollToElement(driver, submitButton);
+                    submitButton.click();
+                    CommonUtils.wait(5000, driver);
+                    System.out.println("submit button is displayed");
+                } while (submitButton.isDisplayed());
 
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
+                // wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
 
                 for (ProcessedVideo processedVideo : processedGame.processedVideos().values()) {
                     processedVideo.uploadDone();
