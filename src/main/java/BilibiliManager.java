@@ -53,10 +53,10 @@ class BilibiliManager {
     private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
 
     private static final int WIDTH_SIZE = 720;
-    private static final int CRF = 18;
+    private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 190;
-    private static final int BIT_RATE = 15000;
-    private static final int FPS = 50;
+    private static final int BIT_RATE = 8000;
+    // private static final int FPS = 60;
 
     private String uid;
     private WebDriver driver;
@@ -413,10 +413,9 @@ class BilibiliManager {
                 String lastProcessedClipPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    ManageServer.executeCommand("rm -f " + lastProcessedClipPath);
-                    String command = "ffmpeg -i " + parsedVidPath
+                    String command = "ffmpeg -y -i " + parsedVidPath
                             + " -ss " + startPos
-                            + " -r " + FPS
+                            // + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
