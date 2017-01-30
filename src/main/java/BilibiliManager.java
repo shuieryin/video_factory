@@ -117,6 +117,7 @@ class BilibiliManager {
                 int uploadedClipCount;
                 int uploadingCount;
                 boolean isGameProcessed;
+                boolean isSubmitButtonTapped = false;
 
                 driver.navigate().to(APPEND_UPLOAD_URL);
                 WebElement searchSection = wait.until(ExpectedConditions.presenceOfElementLocated(By.className("search-wrp")));
@@ -194,10 +195,31 @@ class BilibiliManager {
                         // submitMoreButton.click();
                     }
 
+                    if (!isSubmitButtonTapped && uploadingCount > 0) {
+                        tapSubmit(isNewStory, processedGame);
+                        isSubmitButtonTapped = true;
+                    }
+
                     CommonUtils.wait(5000, driver);
                 } while (!isGameProcessed || uploadingCount > 0); // || finalClipCount != uploadedClipCount
 
-                if (isNewStory) {
+                // wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
+
+                for (ProcessedVideo processedVideo : processedGame.processedVideos().values()) {
+                    processedVideo.uploadDone();
+                }
+
+                processedGames.remove(processedGameName);
+            }
+        });
+
+        uploadThread.start();
+
+        return status;
+    }
+
+    private void tapSubmit(boolean isNewStory, ProcessedGame processedGame) {
+        if (isNewStory) {
 //                    WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
 //                    CommonUtils.scrollToElement(driver, uploadInput);
 //                    uploadInput.sendKeys(ManageServer.ROOT_PATH + "mock.mp4");
@@ -222,67 +244,53 @@ class BilibiliManager {
 //                    CommonUtils.scrollToElement(driver, delButton);
 //                    delButton.click();
 
-                    WebElement selfMadeRadio = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name=\"copyright\"]")));
-                    CommonUtils.scrollToElement(driver, selfMadeRadio);
-                    selfMadeRadio.click();
+            WebElement selfMadeRadio = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name=\"copyright\"]")));
+            CommonUtils.scrollToElement(driver, selfMadeRadio);
+            selfMadeRadio.click();
 
-                    WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
-                    CommonUtils.scrollToElement(driver, categorySection);
+            WebElement categorySection = driver.findElement(By.cssSelector("ul[class=\"type-menu clearfix\"]"));
+            CommonUtils.scrollToElement(driver, categorySection);
 
-                    List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
+            List<WebElement> categoryElements = categorySection.findElements(By.cssSelector("*"));
 
-                    for (WebElement curElement : categoryElements) {
-                        String innerHTML = curElement.getAttribute("innerHTML");
-                        if ("Gaming".equals(innerHTML)) {
-                            curElement.click();
-                        }
-
-                        if ("Stand-alone/Online Games".equals(innerHTML)) {
-                            curElement.findElement(By.xpath("..")).click();
-                            break;
-                        }
-                    }
-
-                    WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
-                    CommonUtils.scrollToElement(driver, titleField);
-                    titleField.clear();
-                    titleField.sendKeys(processedGame.gameName());
-
-                    WebElement tagsSection = driver.findElement(By.cssSelector("div[class=\"recommend-wrp\"]"));
-                    WebElement tagsField = tagsSection.findElement(By.tagName("input"));
-                    CommonUtils.scrollToElement(driver, tagsField);
-                    for (String tag : processedGame.gameName().split(" ")) {
-                        tagsField.sendKeys(tag + Keys.ENTER);
-                    }
-                    tagsField.sendKeys(processedGame.gameName() + Keys.ENTER);
-
-                    WebElement descSection = driver.findElement(By.className("description-wrp"));
-                    WebElement descField = descSection.findElement(By.tagName("textarea"));
-                    CommonUtils.scrollToElement(driver, descField);
-                    descField.sendKeys(processedGame.gameName());
+            for (WebElement curElement : categoryElements) {
+                String innerHTML = curElement.getAttribute("innerHTML");
+                if ("Gaming".equals(innerHTML)) {
+                    curElement.click();
                 }
 
-                WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
-                do {
-                    CommonUtils.scrollToElement(driver, submitButton);
-                    submitButton.click();
-                    CommonUtils.wait(5000, driver);
-                    System.out.println("submit button is displayed");
-                } while (submitButton.isDisplayed());
-
-                // wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
-
-                for (ProcessedVideo processedVideo : processedGame.processedVideos().values()) {
-                    processedVideo.uploadDone();
+                if ("Stand-alone/Online Games".equals(innerHTML)) {
+                    curElement.findElement(By.xpath("..")).click();
+                    break;
                 }
-
-                processedGames.remove(processedGameName);
             }
-        });
 
-        uploadThread.start();
+            WebElement titleField = driver.findElement(By.cssSelector("input[placeholder=\"Please enter the submission title\"]"));
+            CommonUtils.scrollToElement(driver, titleField);
+            titleField.clear();
+            titleField.sendKeys(processedGame.gameName());
 
-        return status;
+            WebElement tagsSection = driver.findElement(By.cssSelector("div[class=\"recommend-wrp\"]"));
+            WebElement tagsField = tagsSection.findElement(By.tagName("input"));
+            CommonUtils.scrollToElement(driver, tagsField);
+            for (String tag : processedGame.gameName().split(" ")) {
+                tagsField.sendKeys(tag + Keys.ENTER);
+            }
+            tagsField.sendKeys(processedGame.gameName() + Keys.ENTER);
+
+            WebElement descSection = driver.findElement(By.className("description-wrp"));
+            WebElement descField = descSection.findElement(By.tagName("textarea"));
+            CommonUtils.scrollToElement(driver, descField);
+            descField.sendKeys(processedGame.gameName());
+        }
+
+        WebElement submitButton = driver.findElement(By.cssSelector("button[class=\"btn submit-btn\"]"));
+        do {
+            CommonUtils.scrollToElement(driver, submitButton);
+            submitButton.click();
+            CommonUtils.wait(5000, driver);
+            System.out.println("submit button is displayed");
+        } while (submitButton.isDisplayed());
     }
 
     private boolean tapLogon(String inputCaptcha) {
