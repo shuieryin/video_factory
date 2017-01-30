@@ -630,10 +630,10 @@ class BilibiliManager {
         Elements uploadStatuses;
         try {
             do {
-                WebElement uploadList = driver.findElement(By.id("sortWrp"));
+                WebElement uploadList = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("sortWrp")));
                 Document deviceTableDom = Jsoup.parse(uploadList.getAttribute("innerHTML"));
                 uploadStatuses = deviceTableDom.getElementsByClass("upload-status");
-                CommonUtils.wait(5000, driver);
+                CommonUtils.wait(10000, driver);
             } while (uploadStatuses.isEmpty());
 
             for (Element uploadStatus : uploadStatuses) {
@@ -650,7 +650,7 @@ class BilibiliManager {
                 }
             }
         } catch (StaleElementReferenceException e) {
-            CommonUtils.wait(5000, driver);
+            CommonUtils.wait(10000, driver);
             System.out.println("Lost statuses, retrying again");
             trackUploadStatus(uploadingCount, uploadedClipCount);
         } catch (Exception e) {
