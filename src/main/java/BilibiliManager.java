@@ -52,7 +52,7 @@ class BilibiliManager {
     private static Pattern uploadingPattern = Pattern.compile("Uploading|上传中断");
     private static Pattern uploadCompletePattern = Pattern.compile("Upload\\scomplete!");
 
-    private static final int WIDTH_SIZE = 720;
+    private static final int WIDTH_SIZE = 1080;
     private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 190;
     private static final int BIT_RATE = 8000;
@@ -633,7 +633,7 @@ class BilibiliManager {
                 WebElement uploadList = driver.findElement(By.id("sortWrp"));
                 Document deviceTableDom = Jsoup.parse(uploadList.getAttribute("innerHTML"));
                 uploadStatuses = deviceTableDom.getElementsByClass("upload-status");
-                CommonUtils.wait(1000, driver);
+                CommonUtils.wait(5000, driver);
             } while (uploadStatuses.isEmpty());
 
             for (Element uploadStatus : uploadStatuses) {
@@ -650,6 +650,7 @@ class BilibiliManager {
                 }
             }
         } catch (StaleElementReferenceException e) {
+            CommonUtils.wait(5000, driver);
             System.out.println("Lost statuses, retrying again");
             trackUploadStatus(uploadingCount, uploadedClipCount);
         } catch (Exception e) {
