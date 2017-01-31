@@ -11,8 +11,13 @@ class CommonUtils {
         wait(500, driver);
     }
 
-    static void wait(long millisecond, WebDriver driver) {
-        driver.manage().timeouts().implicitlyWait(millisecond, TimeUnit.MILLISECONDS);
+    static void wait(long millisecond, @SuppressWarnings("unused") WebDriver driver) {
+        // driver.manage().timeouts().implicitlyWait(millisecond, TimeUnit.MILLISECONDS);
+        try {
+            TimeUnit.MILLISECONDS.sleep(millisecond);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     static void scrollToTop(WebDriver driver) {
