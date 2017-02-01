@@ -18,8 +18,8 @@ class NetworkManager {
 
     private static final String GATEWAY_URL = "http://192.168.1.1/";
     private static final int MAX_UPLOAD_SPEED = 750;
-    private static final int DEFAULT_UPLOAD_SPEED = 450;
-    private static final int PER_SPEED_UP = 30;
+    private static final int DEFAULT_UPLOAD_SPEED = 550;
+    private static final int PER_SPEED_UP = 20;
 
     private WebDriver driver;
     private WebDriverWait wait;
@@ -41,7 +41,7 @@ class NetworkManager {
                     }
                 },
                 10,
-                60,
+                120,
                 TimeUnit.SECONDS
         );
     }
