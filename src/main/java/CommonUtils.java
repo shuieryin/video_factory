@@ -30,7 +30,7 @@ class CommonUtils {
         try {
             element.click();
         } catch (Exception e) {
-            System.out.println("inifiniteClick failed");
+            System.out.println("infinite Click failed");
             e.printStackTrace();
             wait(1000, driver);
             inifiniteClick(element, driver);
