@@ -26,14 +26,14 @@ class CommonUtils {
     }
 
     @SuppressWarnings({"WeakerAccess", "unused"})
-    static void inifiniteClick(WebElement element, WebDriver driver) {
+    static void infiniteClick(WebElement element, WebDriver driver) {
         try {
             element.click();
         } catch (Exception e) {
             System.out.println("infinite Click failed");
             e.printStackTrace();
             wait(1000, driver);
-            inifiniteClick(element, driver);
+            infiniteClick(element, driver);
         }
     }
 
