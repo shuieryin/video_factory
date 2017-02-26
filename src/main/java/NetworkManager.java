@@ -28,10 +28,7 @@ class NetworkManager {
     private long currentSpeed = defaultUploadSpeed;
 
     NetworkManager() {
-        defaultUploadSpeed = maxUploadSpeed - 250;
-        if (defaultUploadSpeed < 0) {
-            defaultUploadSpeed = PER_SPEED_UP;
-        }
+        initSpeed();
 
         driver = new FirefoxDriver();
         wait = new WebDriverWait(driver, 20);
@@ -113,6 +110,8 @@ class NetworkManager {
 
             index++;
         }
+
+        initSpeed();
     }
 
     private void balanceUploadSpeed() throws InterruptedException, IOException {
@@ -240,6 +239,13 @@ class NetworkManager {
         }
 
         return number;
+    }
+
+    private void initSpeed() {
+        defaultUploadSpeed = maxUploadSpeed - 250;
+        if (defaultUploadSpeed < 0) {
+            defaultUploadSpeed = PER_SPEED_UP;
+        }
     }
 
 }
