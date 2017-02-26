@@ -1,3 +1,4 @@
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -17,16 +18,21 @@ import java.util.regex.Pattern;
 class NetworkManager {
 
     private static final String GATEWAY_URL = "http://192.168.1.1/";
-    private static final int MAX_UPLOAD_SPEED = 750;
-    private static final int DEFAULT_UPLOAD_SPEED = 550;
+    private static int maxUploadSpeed = 750;
+    private static int defaultUploadSpeed;
     private static final int PER_SPEED_UP = 20;
 
     private WebDriver driver;
     private WebDriverWait wait;
     private Pattern speedPattern = Pattern.compile("(\\d+)(KB|MB|GB)/s");
-    private long currentSpeed = DEFAULT_UPLOAD_SPEED;
+    private long currentSpeed = defaultUploadSpeed;
 
     NetworkManager() {
+        defaultUploadSpeed = maxUploadSpeed - 250;
+        if (defaultUploadSpeed < 0) {
+            defaultUploadSpeed = PER_SPEED_UP;
+        }
+
         driver = new FirefoxDriver();
         wait = new WebDriverWait(driver, 20);
         driver.navigate().to(GATEWAY_URL);
@@ -78,7 +84,38 @@ class NetworkManager {
         }
     }
 
-    void balanceUploadSpeed() throws InterruptedException, IOException {
+    void limit(String args) {
+        if (args.isEmpty()) {
+            System.out.println("Limit args empty.");
+            return;
+        }
+
+        String[] argsArr = args.split(StringUtils.SPACE);
+        int index = 0;
+        for (String arg : argsArr) {
+            if (arg.equals("-u")) {
+                int targetIndex = index + 1;
+                if (targetIndex > args.length() - 1) {
+                    System.out.println("Invalid upload speed args.");
+                    break;
+                }
+
+                String uploadSpeedStr = argsArr[targetIndex];
+                if (!StringUtils.isNumeric(uploadSpeedStr)) {
+                    System.out.println("Invalid upload speed args.");
+                    break;
+                }
+
+                int uploadSpeed = Integer.parseInt(uploadSpeedStr);
+                System.out.println("Set max upload speed from [" + maxUploadSpeed + "] to [" + uploadSpeed + "] done.");
+                maxUploadSpeed = uploadSpeed;
+            }
+
+            index++;
+        }
+    }
+
+    private void balanceUploadSpeed() throws InterruptedException, IOException {
         System.out.println();
         boolean hasUploadThread = false;
         for (BilibiliManager bilibiliManager : ManageServer.bilibiliManagersMap.values()) {
@@ -137,9 +174,9 @@ class NetworkManager {
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("eptMngDetail")));
 
         if (totalUploadKiloBytes == 0 && totalDownloadKiloBytes == 0) {
-            currentSpeed = currentSpeed < MAX_UPLOAD_SPEED ? currentSpeed + PER_SPEED_UP : MAX_UPLOAD_SPEED;
+            currentSpeed = currentSpeed < maxUploadSpeed ? currentSpeed + PER_SPEED_UP : maxUploadSpeed;
         } else {
-            currentSpeed = Math.max(10, DEFAULT_UPLOAD_SPEED - totalUploadKiloBytes);
+            currentSpeed = Math.max(10, defaultUploadSpeed - totalUploadKiloBytes);
         }
 
         System.out.println("targetUploadSpeedLimit: " + currentSpeed);

@@ -40,7 +40,7 @@ public class ManageServer extends NanoHTTPD {
     static DataOutputStream commandOut;
     private BufferedReader commandIn;
     private boolean isSystemTurningOff = false;
-    private static Pattern userInputPattern = Pattern.compile("^([^:]+)[:]?(\\S*)");
+    private static Pattern userInputPattern = Pattern.compile("^(\\S+)\\s?(.*)$");
     private static boolean isCommandDone = false;
     private Thread receiveSocketThread;
     static ScheduledExecutorService scheduler;
@@ -103,6 +103,7 @@ public class ManageServer extends NanoHTTPD {
                 for (BilibiliManager bm : bilibiliManagersMap.values()) {
                     bm.stopUploadThread();
                 }
+
                 isSystemTurningOff = true;
                 if (receiveSocketThread.isAlive()) {
                     new Thread(() -> executeCommandRemotely("close", false)).start();
@@ -114,11 +115,10 @@ public class ManageServer extends NanoHTTPD {
                     bm.close();
                 }
 
+                executeCommand("rm -f " + ROOT_PATH + "core.*; rm -f " + ROOT_PATH + "*.log; rm -f " + ROOT_PATH + "*driver");
                 executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox|ffmpeg')");
-                executeCommand("rm " + ROOT_PATH + "core.*; rm " + ROOT_PATH + "*.log; rm " + ROOT_PATH + "*driver");
-                FileUtils.forceDelete(new File(driverPath));
                 System.out.println("turned off");
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }));
@@ -191,7 +191,7 @@ public class ManageServer extends NanoHTTPD {
 
         System.setProperty("webdriver.gecko.driver", driverPath);
 
-        handleUserInput("ibs");
+        handleUserInput("ibs\n");
 
         System.out.println("\nRunning!\n");
 
@@ -309,8 +309,8 @@ public class ManageServer extends NanoHTTPD {
                 case "cmd":
                     executeCommandRemotely(args, true);
                     break;
-                case "xs":
-                    nm.balanceUploadSpeed();
+                case "limit":
+                    nm.limit(args);
                     break;
             }
         } catch (Exception e) {

@@ -9,10 +9,18 @@ public class Main {
 
             Scanner scanner = new Scanner(System.in);
             String userInput;
-            while (!"stop".equalsIgnoreCase(userInput = scanner.next())) {
-                server.handleUserInput(userInput);
+            for (; ; ) {
+                userInput = scanner.nextLine();
+                if (userInput.isEmpty()) {
+                    continue;
+                }
+
+                if ("stop".equalsIgnoreCase(userInput)) {
+                    System.exit(0);
+                }
+
+                server.handleUserInput(userInput.trim());
             }
-            System.exit(9);
         } catch (IOException ioe) {
             System.err.println("Couldn't start server:\n" + ioe);
         }

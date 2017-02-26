@@ -37,7 +37,7 @@ class BilibiliManager {
     private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
     private static final String APPEND_UPLOAD_URL = "http://member.bilibili.com/v/#!/article";
     private static long expireTime;
-    private static int CLIP_AMOUNT_PER_BATCH = 3;
+    private static int CLIP_AMOUNT_PER_BATCH = 6;
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 3;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
@@ -358,7 +358,7 @@ class BilibiliManager {
 
     void close() {
         if (driver != null) {
-            driver.quit();
+            // driver.close();
             System.out.println("session: " + uid + " closed.");
         }
     }
