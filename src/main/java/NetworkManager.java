@@ -10,6 +10,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -31,8 +32,7 @@ class NetworkManager {
         initSpeed();
 
         driver = new FirefoxDriver();
-        wait = new WebDriverWait(driver, 20);
-        driver.navigate().to(GATEWAY_URL);
+        wait = new WebDriverWait(driver, 60);
 
         NetworkManager self = this;
         ManageServer.scheduler.scheduleAtFixedRate(
@@ -44,7 +44,7 @@ class NetworkManager {
                     }
                 },
                 10,
-                120,
+                150,
                 TimeUnit.SECONDS
         );
     }
@@ -60,11 +60,11 @@ class NetworkManager {
                     }
 
                     passwordField.get(0).sendKeys(ManageServer.retrieveData("router_password"));
+                    CommonUtils.wait(2000, driver);
 
                     WebElement logonButton = driver.findElement(By.id("loginSub"));
                     CommonUtils.scrollToElement(driver, logonButton);
                     logonButton.click();
-                    CommonUtils.wait(40000, driver);
                 } while (driver.findElements(By.id("loginError")).size() > 0);
 
                 WebElement deviceManageButton;
@@ -125,7 +125,7 @@ class NetworkManager {
         }
 
         if (!hasUploadThread) {
-            System.out.println("No upload thread found, exit blanace upload speed feature");
+            System.out.println("[" + LocalDateTime.now() + "] No upload thread found, exit blanace upload speed feature");
             return;
         }
 
