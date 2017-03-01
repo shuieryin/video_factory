@@ -637,6 +637,16 @@ class BilibiliManager {
     private int[] trackUploadStatus(int uploadingCount, int uploadedClipCount) {
         Elements uploadStatuses;
         try {
+            List<WebElement> reuploadButtons = driver.findElements(By.cssSelector("a[class=\"reupload-btn right\"]"));
+            if (!reuploadButtons.isEmpty()) {
+                for (WebElement reuploadButton : reuploadButtons) {
+                    if (reuploadButton.isDisplayed()) {
+                        reuploadButton.click();
+                        CommonUtils.wait(1000, driver);
+                    }
+                }
+            }
+
             do {
                 WebElement uploadList = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("sortWrp")));
                 Document deviceTableDom = Jsoup.parse(uploadList.getAttribute("innerHTML"));

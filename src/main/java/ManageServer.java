@@ -195,7 +195,7 @@ public class ManageServer extends NanoHTTPD {
 
         System.out.println("\nRunning!\n");
 
-        nm = new NetworkManager();
+        // nm = new NetworkManager(); stop using network manager for the moment
     }
 
     // http://localhost:4567/bilibili_manager?uid=h121234hjk&event=input_credentials&username=shuieryin&password=46127836471823
