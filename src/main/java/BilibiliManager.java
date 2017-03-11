@@ -117,7 +117,7 @@ class BilibiliManager {
                 int uploadedClipCount;
                 int uploadingCount;
                 boolean isGameProcessed;
-                boolean isSubmitButtonTapped = false;
+//                boolean isSubmitButtonTapped = false;
 
                 driver.navigate().to(APPEND_UPLOAD_URL);
                 WebElement searchSection = wait.until(ExpectedConditions.presenceOfElementLocated(By.className("search-wrp")));
@@ -191,19 +191,17 @@ class BilibiliManager {
                         }
 
                         CommonUtils.wait(3000, driver);
-
-                        // submitMoreButton.click();
                     }
 
-                    if (!isSubmitButtonTapped && uploadingCount > 0) {
-                        tapSubmit(isNewStory, processedGame);
-                        isSubmitButtonTapped = true;
-                    }
+//                    if (!isSubmitButtonTapped && uploadingCount > 0) {
+//                        tapSubmit(isNewStory, processedGame);
+//                        isSubmitButtonTapped = true;
+//                    }
 
                     CommonUtils.wait(5000, driver);
                 } while (!isGameProcessed || uploadingCount > 0); // || finalClipCount != uploadedClipCount
 
-                // wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href=\"" + UPLOAD_URL + "\"]")));
+                tapSubmit(isNewStory, processedGame);
 
                 for (ProcessedVideo processedVideo : processedGame.processedVideos().values()) {
                     processedVideo.uploadDone();
@@ -220,30 +218,6 @@ class BilibiliManager {
 
     private void tapSubmit(boolean isNewStory, ProcessedGame processedGame) {
         if (isNewStory) {
-//                    WebElement uploadInput = driver.findElement(By.cssSelector("input[accept=\".flv, .mp4\"]"));
-//                    CommonUtils.scrollToElement(driver, uploadInput);
-//                    uploadInput.sendKeys(ManageServer.ROOT_PATH + "mock.mp4");
-//
-//                    try {
-//                        WebElement dataAlertHideButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("button[data-alert-hide]")));
-//                        CommonUtils.scrollToElement(driver, dataAlertHideButton);
-//                        dataAlertHideButton.click();
-//                    } catch (Exception e) {
-//                        System.out.println("No data alert hide button");
-//                    }
-//
-//                    WebElement delIcon = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("i[class=\"icon icon-cancel\"]")));
-//                    CommonUtils.scrollToTop(driver);
-//                    Actions action = new Actions(driver);
-//                    action.moveToElement(delIcon).build().perform();
-//                    CommonUtils.wait(500, driver);
-//                    // CommonUtils.scrollToElement(driver, delIcon);
-//                    delIcon.click();
-//
-//                    WebElement delButton = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("button[data-del-upload]")));
-//                    CommonUtils.scrollToElement(driver, delButton);
-//                    delButton.click();
-
             WebElement selfMadeRadio = wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("input[name=\"copyright\"]")));
             CommonUtils.scrollToElement(driver, selfMadeRadio);
             selfMadeRadio.click();
