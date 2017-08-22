@@ -23,18 +23,18 @@ class ProcessedVideo {
         Matcher vidPathMatcher = pattern.matcher(vidPath);
         vidPathMatcher.find();
 
-        videoName = vidPathMatcher.group(1);
-        gameName = vidPathMatcher.group(2);
-        processedPath = "/root/vids/processed/" + gameName.replaceAll("\\s", "\\\\ ") + "/"; // + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";;
+        videoName = vidPathMatcher.group(2);
+        gameName = vidPathMatcher.group(3);
+        processedPath = "/srv/grand_backup/samba/vids/processed/" + gameName.replaceAll("\\s", "\\\\ ") + "/"; // + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";;
         ManageServer.executeCommand("mkdir -p " + processedPath); // + "; rm -f " + processedPath + "*");
 
         LocalDateTime timePoint = LocalDateTime.of(
-                Integer.parseInt(vidPathMatcher.group(3)),
                 Integer.parseInt(vidPathMatcher.group(4)),
                 Integer.parseInt(vidPathMatcher.group(5)),
                 Integer.parseInt(vidPathMatcher.group(6)),
                 Integer.parseInt(vidPathMatcher.group(7)),
-                Integer.parseInt(vidPathMatcher.group(8))
+                Integer.parseInt(vidPathMatcher.group(8)),
+                Integer.parseInt(vidPathMatcher.group(9))
         );
         createTime = Date.from(timePoint.atZone(ZoneId.systemDefault()).toInstant()).getTime();
         try {

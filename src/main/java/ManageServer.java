@@ -27,7 +27,7 @@ public class ManageServer extends NanoHTTPD {
     // TODO check what is uploading and show uploading video list
     private static String OS = System.getProperty("os.name").toLowerCase();
     @SuppressWarnings("WeakerAccess")
-    static final String ROOT_PATH = "/root/Documents/";
+    static final String ROOT_PATH = "/home/shuieryin/";
     private static final String DRIVER_NAME = "geckodriver";
     private static final int SCHEDULE_INTERVAL_MINUTES = 1; // 5
     private String driverPath;
@@ -53,11 +53,16 @@ public class ManageServer extends NanoHTTPD {
             for (; ; ) {
                 try {
                     String responseLine = "";
-                    while (null != commandIn && null != (responseLine = commandIn.readLine()) && !"done".equals(responseLine)) {
-                        System.out.println(new String(Base64.decode(responseLine)));
+                    String decodedLine = "";
+                    while (null != commandIn && null != (responseLine = commandIn.readLine())) {
+                        decodedLine = new String(Base64.decode(responseLine));
+                        System.out.println(decodedLine);
+                        if ("done\n".equals(decodedLine)) {
+                            break;
+                        }
                     }
 
-                    if ("done".equals(responseLine)) {
+                    if ("done\n".equals(decodedLine)) {
                         isCommandDone = true;
                     }
 
@@ -71,7 +76,7 @@ public class ManageServer extends NanoHTTPD {
                         commandSocket = null;
                         commandOut = null;
                         commandIn = null;
-                        commandSocket = new Socket("localhost", 12345); // 192.168.1.123
+                        commandSocket = new Socket("localhost", 12346); // 192.168.1.123
                         commandOut = new DataOutputStream(commandSocket.getOutputStream());
                         commandIn = new BufferedReader(new InputStreamReader(commandSocket.getInputStream()));
                         System.out.println("socket connected");
@@ -125,21 +130,24 @@ public class ManageServer extends NanoHTTPD {
 
         scheduler = Executors.newScheduledThreadPool(10);
 
-        scheduler.scheduleAtFixedRate(
+        scheduler.schedule(
                 () -> {
                     try {
                         System.out.println();
-                        System.out.println("[" + LocalDateTime.now() + "] Start regular scheduler...");
+                        System.out.println("[" + LocalDateTime.now() + "] Starting scheduler...");
                         if (null == processVideoScheduler || processVideoScheduler.isDone()) {
                             processVideoScheduler = scheduler.schedule(
                                     () -> {
                                         for (BilibiliManager bm : bilibiliManagersMap.values()) {
+                                            bm.mergeVideos();
                                             bm.processVideos();
                                         }
                                     },
-                                    10,
+                                    2,
                                     TimeUnit.SECONDS
                             );
+                        } else {
+                            System.out.println("processVideoScheduler not done yet");
                         }
 
                         long now = Calendar.getInstance().getTimeInMillis();
@@ -152,44 +160,43 @@ public class ManageServer extends NanoHTTPD {
                             }
                         }
 
-                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                            String autoStartUploadStatus = bm.uploadVideos();
-                            System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
-                        }
+//                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
+//                            String autoStartUploadStatus = bm.uploadVideos();
+//                            System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
+//                        }
 
                     } catch (Exception e) {
                         System.out.println("Error in regular scheduler");
                         e.printStackTrace();
                     }
                 },
-                60,
-                60 * SCHEDULE_INTERVAL_MINUTES,
+                2 * SCHEDULE_INTERVAL_MINUTES,
                 TimeUnit.SECONDS
         );
 
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 
-        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+//        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
 
-        if (OS.contains("win")) {
-            driverPath = DRIVER_NAME + ".exe";
-            ControlKey = Keys.CONTROL;
-        } else if (OS.contains("mac")) {
-            driverPath = "mac" + DRIVER_NAME;
-            ControlKey = Keys.COMMAND;
-        } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
-            driverPath = "linux" + DRIVER_NAME;
-            ControlKey = Keys.CONTROL;
-        } else {
-            throw (new RuntimeException("Your OS is not supported!! [" + OS + "]"));
-        }
+//        if (OS.contains("win")) {
+//            driverPath = DRIVER_NAME + ".exe";
+//            ControlKey = Keys.CONTROL;
+//        } else if (OS.contains("mac")) {
+//            driverPath = "mac" + DRIVER_NAME;
+//            ControlKey = Keys.COMMAND;
+//        } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
+//            driverPath = "linux" + DRIVER_NAME;
+//            ControlKey = Keys.CONTROL;
+//        } else {
+//            throw (new RuntimeException("Your OS is not supported!! [" + OS + "]"));
+//        }
 
-        InputStream driverStream = classloader.getResourceAsStream(driverPath);
+//        InputStream driverStream = classloader.getResourceAsStream(driverPath);
 
-        Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
-        executeCommand("chmod 755 " + driverPath);
+//        Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
+//        executeCommand("chmod 755 " + driverPath);
 
-        System.setProperty("webdriver.gecko.driver", driverPath);
+//        System.setProperty("webdriver.gecko.driver", driverPath);
 
         handleUserInput("ibs\n");
 
@@ -272,13 +279,15 @@ public class ManageServer extends NanoHTTPD {
 
             // read the output from the command
             while ((line = stdInput.readLine()) != null) {
-                output.append(line + "\n");
+                output.append(line);
+                output.append("\n");
                 System.out.println("cmd in: " + line);
             }
 
             // read any errors from the attempted command
             while ((line = stdError.readLine()) != null) {
-                output.append(line + "\n");
+                output.append(line);
+                output.append("\n");
                 System.out.println("cmd err: " + line);
             }
         } catch (Exception e) {

@@ -34,15 +34,15 @@ class BilibiliManager {
     private static final String OUTPUT_FORMAT = "mp4";
     private static final String LOGON_URL = "https://passport.bilibili.com/login";
     private static final String CAPTCHA_IMG_PATH = "captchaImg.png";
-    private static final String UPLOAD_URL = "http://member.bilibili.com/v/video/submit.html";
-    private static final String APPEND_UPLOAD_URL = "http://member.bilibili.com/v/#!/article";
+    private static final String UPLOAD_URL = "http://member.bilibili.com/video/resubmit.html";
+    private static final String APPEND_UPLOAD_URL = "https://member.bilibili.com/v/#/article";
     private static long expireTime;
     private static int CLIP_AMOUNT_PER_BATCH = 6;
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 3;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     // private static Pattern existingProcessedPartPattern = Pattern.compile("/part(\\d+)\\." + OUTPUT_FORMAT + "$");
-    private static final String vidPathPatternStr = "/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
+    private static final String vidPathPatternStr = "^(.*)/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
@@ -67,13 +67,13 @@ class BilibiliManager {
     BilibiliManager(String Uid) throws InterruptedException, IOException {
         this.uid = Uid;
 
-        System.out.println("launching firefox browser for [" + Uid + "]");
+//        System.out.println("launching firefox browser for [" + Uid + "]");
 
         updateExpireTime();
 
-        driver = new FirefoxDriver();
-        wait = new WebDriverWait(driver, 10);
-        driver.navigate().to(LOGON_URL);
+//        driver = new FirefoxDriver();
+//        wait = new WebDriverWait(driver, 10);
+//        driver.navigate().to(LOGON_URL);
 
         initUploadVideo();
     }
@@ -350,15 +350,68 @@ class BilibiliManager {
         return uid;
     }
 
-    boolean processVideos() {
+    void mergeVideos() {
+        try {
+            System.out.println("merging videos...");
+            List<String> pendingMergePaths = pendingProcessVids("/srv/grand_backup/samba/vids/pending_merge", false);
+            Map<String, List<String>> pendingMergeVidsInfos = new HashMap<>();
+            for (int i = 0; i < pendingMergePaths.size(); i++) {
+                String vidPath = pendingMergePaths.get(i);
+
+                Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
+                if (!vidPathMatcher.find()) {
+                    System.out.println("vidPath not found: " + vidPath);
+                    continue;
+                }
+                String gameName = vidPathMatcher.group(3);
+                List<String> vidsPaths = pendingMergeVidsInfos.get(gameName);
+                if (vidsPaths == null) {
+                    vidsPaths = new ArrayList<>();
+                    pendingMergeVidsInfos.put(gameName, vidsPaths);
+                }
+
+                vidsPaths.add(vidPath);
+            }
+
+            for (Map.Entry<String, List<String>> entry : pendingMergeVidsInfos.entrySet()) {
+                String afterConcatName = "";
+                List<String> vidsPath = entry.getValue();
+                String processFilePath = "";
+                for (int i = 0; i < vidsPath.size(); i++) {
+                    String vidPath = vidsPath.get(i);
+                    System.out.println("vidPath: " + vidPath);
+                    if (i == 0) {
+                        afterConcatName = vidPath;
+                        Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
+                        if (!vidPathMatcher.find()) {
+                            System.out.println("vidPath not found: " + vidPath);
+                            continue;
+                        }
+                        String gameFolder = vidPathMatcher.group(1);
+                        String gameName = vidPathMatcher.group(3);
+                        String pending_process_folder = gameFolder.replaceFirst("pending_merge", "pending_process");
+                        processFilePath = pending_process_folder + "/" + gameName + ".txt";
+                        ManageServer.executeCommand("rm -rf " + pending_process_folder);
+                        ManageServer.executeCommand("mkdir -p " + pending_process_folder);
+                    }
+                    ManageServer.executeCommand("echo \"file '" + vidPath + "'\" | tee -a " + processFilePath + "\n");
+                }
+                String finalOutputName = afterConcatName.replaceAll(replaceSpace, "\\\\ ").replaceFirst("pending_merge", "pending_process");
+                String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + processFilePath + " -c copy " + finalOutputName;
+                ManageServer.executeCommandRemotely(concatVidsCommand, true);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    void processVideos() {
         System.out.println();
         System.out.println("processing videos...");
-        if (null == ManageServer.commandOut) {
-            return false;
-        }
-
         try {
-            for (String vidPath : pendingProcessVids(false)) {
+            List<String> pendingProcessPaths = pendingProcessVids("/srv/grand_backup/samba/vids/pending_process", false);
+            System.out.println(pendingProcessPaths);
+            for (String vidPath : pendingProcessPaths) {
                 System.out.println("vidPath: " + vidPath);
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
                 long totalSeconds = videoDuration(parsedVidPath);
@@ -373,7 +426,7 @@ class BilibiliManager {
                     System.out.println("vidPath not found: " + vidPath);
                     continue;
                 }
-                String gameName = vidPathMatcher.group(2);
+                String gameName = vidPathMatcher.group(3);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
                 if (null == processedGame) {
@@ -434,6 +487,8 @@ class BilibiliManager {
                 ManageServer.executeCommand("mv " + parsedVidPath + " " + finalParsedVidPath);
 
                 System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+
+                processedGames.remove(processedGame.gameName());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -441,13 +496,12 @@ class BilibiliManager {
 
         System.out.println("process videos done");
         System.out.println();
-        return true;
     }
 
-    private List<String> pendingProcessVids(boolean isGetDones) throws IOException {
+    private List<String> pendingProcessVids(String path, boolean isGetDones) throws IOException {
         List<String> vidsList = new ArrayList<>();
 
-        Path rootPath = Paths.get("/root/vids/pending_process");
+        Path rootPath = Paths.get(path);
 
         if (!Files.exists(rootPath)) {
             return vidsList;
@@ -515,7 +569,7 @@ class BilibiliManager {
     private void initUploadVideo() throws IOException {
         System.out.println();
         System.out.println("initUploadVideo start");
-        List<String> pendingUploadVids = pendingProcessVids(true);
+        List<String> pendingUploadVids = pendingProcessVids("/srv/grand_backup/samba/vids/pending_merge", true);
         System.out.println("pendingUploadVids size: " + pendingUploadVids.size());
 
         for (String pendingUploadVid : pendingUploadVids) {
@@ -525,7 +579,7 @@ class BilibiliManager {
                 continue;
             }
 
-            String gameName = vidPathMatcher.group(2);
+            String gameName = vidPathMatcher.group(3);
             ProcessedGame processedGame = processedGames.get(gameName);
             if (null == processedGame) {
                 processedGame = new ProcessedGame(gameName);
@@ -535,7 +589,7 @@ class BilibiliManager {
             ProcessedVideo processedVideo = new ProcessedVideo(pendingUploadVid, processedVidPathPattern);
             processedVideo.setOriginalVideoPath(pendingUploadVid.replaceAll(replaceSpace, "\\\\ "));
 
-            int clipCount = Integer.parseInt(vidPathMatcher.group(11));
+            int clipCount = Integer.parseInt(vidPathMatcher.group(12));
             String uploadRootPath = processedVideo.processedPath.replaceAll("\\\\", "");
             for (int i = 0; i < clipCount; i++) {
                 processedVideo.addClipPath(uploadRootPath + processedVideo.uuid() + "-" + (i + 1) + "." + OUTPUT_FORMAT);
@@ -578,13 +632,13 @@ class BilibiliManager {
                     }
                     break;
                 case "pending_process_vids":
-                    returnJSON.put("vids_list", pendingProcessVids(false));
+                    returnJSON.put("vids_list", pendingProcessVids("/srv/grand_backup/samba/vids/pending_process", false));
                     break;
                 case "get_latest_captcha":
                     latestCaptcha(returnJSON);
                     break;
                 case "pending_upload_vids":
-                    returnJSON.put("vids_list", pendingProcessVids(true));
+                    returnJSON.put("vids_list", pendingProcessVids("/srv/grand_backup/samba/vids/pending_process", true));
                     break;
                 case "upload_vids":
                     returnJSON.put("status", uploadVideos());
@@ -605,7 +659,7 @@ class BilibiliManager {
     private int parseClipCount(ProcessedVideo processedVideo) {
         Matcher vidPathMatcher = processedVidPathPattern.matcher(processedVideo.originalVideoPath().replaceAll("\\\\ ", " "));
         vidPathMatcher.find();
-        return Integer.parseInt(vidPathMatcher.group(11));
+        return Integer.parseInt(vidPathMatcher.group(12));
     }
 
     private int[] trackUploadStatus(int uploadingCount, int uploadedClipCount) {
