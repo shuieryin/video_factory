@@ -426,6 +426,8 @@ class BilibiliManager {
                     System.out.println("vidPath not found: " + vidPath);
                     continue;
                 }
+                String gameFolder = vidPathMatcher.group(1);
+                String pending_merge_folder = gameFolder.replaceFirst("pending_process", "pending_merge");
                 String gameName = vidPathMatcher.group(3);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
@@ -482,9 +484,7 @@ class BilibiliManager {
                 System.out.println("totalSeconds: " + totalSeconds);
                 System.out.println();
 
-                String finalParsedVidPath = parsedVidPath + ".done." + clipCount;
-                processedVideo.setOriginalVideoPath(finalParsedVidPath);
-                ManageServer.executeCommand("mv " + parsedVidPath + " " + finalParsedVidPath);
+                ManageServer.executeCommand("rm -f " + parsedVidPath + "; rm -rf " + pending_merge_folder);
 
                 System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
 
@@ -496,6 +496,8 @@ class BilibiliManager {
 
         System.out.println("process videos done");
         System.out.println();
+
+        System.exit(0);
     }
 
     private List<String> pendingProcessVids(String path, boolean isGetDones) throws IOException {
