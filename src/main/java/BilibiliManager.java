@@ -15,11 +15,10 @@ class BilibiliManager {
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 3;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
-    // private static Pattern existingProcessedPartPattern = Pattern.compile("/part(\\d+)\\." + OUTPUT_FORMAT + "$");
     private static final String vidPathPatternStr = "^(.*)/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
-    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20); // 1024 * 1024 * 50; // (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20)
+    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
     private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
@@ -28,7 +27,7 @@ class BilibiliManager {
     private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 190;
     private static final int BIT_RATE = 8000;
-//    private static final int FPS = 50;
+    // private static final int FPS = 50;
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -135,6 +134,7 @@ class BilibiliManager {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -y -i " + parsedVidPath
                             + " -ss " + startPos
+                            + " -vsync 0 "
 //                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
