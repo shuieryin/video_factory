@@ -110,8 +110,8 @@ class BilibiliManager {
                     System.out.println("vidPath not found: " + vidPath);
                     continue;
                 }
-                String gameFolder = vidPathMatcher.group(1);
-                String pending_merge_folder = gameFolder.replaceFirst("pending_process", "pending_merge");
+                String pending_process_folder = vidPathMatcher.group(1).replaceAll(replaceSpace, "\\\\ ").replaceAll("'", "\\\\'");
+                String pending_merge_folder = pending_process_folder.replaceFirst("pending_process", "pending_merge");
                 String gameName = vidPathMatcher.group(3);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
@@ -166,7 +166,7 @@ class BilibiliManager {
                 System.out.println("totalSeconds: " + totalSeconds);
                 System.out.println();
 
-                ManageServer.executeCommand("rm -f " + parsedVidPath + "; rm -rf " + pending_merge_folder);
+                ManageServer.executeCommand("rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder + "; rm -rf " + pending_merge_folder);
 
                 System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
 
