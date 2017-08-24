@@ -13,7 +13,7 @@ class BilibiliManager {
 
     private static final String OUTPUT_FORMAT = "mp4";
     @SuppressWarnings("FieldCanBeLocal")
-    private static int OVERLAP_DURATION_SECONDS = 3;
+    private static int OVERLAP_DURATION_SECONDS = 1;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
     private static final String vidPathPatternStr = "^(.*)/(([^/]+)\\s(\\d{4})\\.(\\d{2})\\.(\\d{2})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
