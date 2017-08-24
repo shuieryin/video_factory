@@ -1,17 +1,12 @@
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import fi.iki.elonen.NanoHTTPD;
-import org.apache.commons.io.FileUtils;
-import org.apache.xerces.impl.dv.util.Base64;
-import org.openqa.selenium.Keys;
 
-import java.io.*;
-import java.net.HttpURLConnection;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,27 +19,20 @@ import java.util.regex.Pattern;
 
 public class ManageServer extends NanoHTTPD {
 
-    // TODO check what is uploading and show uploading video list
-    private static String OS = System.getProperty("os.name").toLowerCase();
     @SuppressWarnings("WeakerAccess")
     static final String ROOT_PATH = "/home/shuieryin/";
-    private static final String DRIVER_NAME = "geckodriver";
     private static final int SCHEDULE_INTERVAL_MINUTES = 1; // 5
-    private String driverPath;
-    @SuppressWarnings({"unused", "FieldCanBeLocal"})
-    private static CharSequence ControlKey;
-    static Map<String, BilibiliManager> bilibiliManagersMap = new HashMap<>();
+    private static Map<String, BilibiliManager> bilibiliManagersMap = new HashMap<>();
     private ScheduledFuture<?> processVideoScheduler;
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
-    static DataOutputStream commandOut;
+    private static DataOutputStream commandOut;
     private BufferedReader commandIn;
     private boolean isSystemTurningOff = false;
     private static Pattern userInputPattern = Pattern.compile("^(\\S+)\\s?(.*)$");
     private static boolean isCommandDone = false;
     private Thread receiveSocketThread;
-    static ScheduledExecutorService scheduler;
-    private NetworkManager nm;
+    private static ScheduledExecutorService scheduler;
 
     ManageServer() throws IOException {
         super(4567);
@@ -105,9 +93,6 @@ public class ManageServer extends NanoHTTPD {
         rt.addShutdownHook(new Thread(() -> {
             try {
                 System.out.println("closing...");
-                for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                    bm.stopUploadThread();
-                }
 
                 isSystemTurningOff = true;
                 if (receiveSocketThread.isAlive()) {
@@ -116,12 +101,7 @@ public class ManageServer extends NanoHTTPD {
                     receiveSocketThread.stop();
                 }
 
-                for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                    bm.close();
-                }
-
-                executeCommand("rm -f " + ROOT_PATH + "core.*; rm -f " + ROOT_PATH + "*.log; rm -f " + ROOT_PATH + "*driver");
-                executeCommand("kill -9 $(pgrep 'geckodriv|java|firefox|ffmpeg')");
+                executeCommand("rm -f " + ROOT_PATH + "core.*; rm -f " + ROOT_PATH + "*.log");
                 System.out.println("turned off");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -150,21 +130,6 @@ public class ManageServer extends NanoHTTPD {
                             System.out.println("processVideoScheduler not done yet");
                         }
 
-                        long now = Calendar.getInstance().getTimeInMillis();
-                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                            //noinspection StatementWithEmptyBody
-                            if (bm.expireTime() < now) {
-                            /* temp never close */
-//                            bm.close();
-//                            bilibiliManagersMap.remove(bm.uid());
-                            }
-                        }
-
-//                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
-//                            String autoStartUploadStatus = bm.uploadVideos();
-//                            System.out.println("autoStartUploadStatus: " + autoStartUploadStatus);
-//                        }
-
                     } catch (Exception e) {
                         System.out.println("Error in regular scheduler");
                         e.printStackTrace();
@@ -176,36 +141,10 @@ public class ManageServer extends NanoHTTPD {
 
         start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 
-//        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-
-//        if (OS.contains("win")) {
-//            driverPath = DRIVER_NAME + ".exe";
-//            ControlKey = Keys.CONTROL;
-//        } else if (OS.contains("mac")) {
-//            driverPath = "mac" + DRIVER_NAME;
-//            ControlKey = Keys.COMMAND;
-//        } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
-//            driverPath = "linux" + DRIVER_NAME;
-//            ControlKey = Keys.CONTROL;
-//        } else {
-//            throw (new RuntimeException("Your OS is not supported!! [" + OS + "]"));
-//        }
-
-//        InputStream driverStream = classloader.getResourceAsStream(driverPath);
-
-//        Files.copy(driverStream, Paths.get(driverPath), StandardCopyOption.REPLACE_EXISTING);
-//        executeCommand("chmod 755 " + driverPath);
-
-//        System.setProperty("webdriver.gecko.driver", driverPath);
-
         handleUserInput("ibs\n");
 
         System.out.println("\nRunning!\n");
-
-        // nm = new NetworkManager(); stop using network manager for the moment
     }
-
-    // http://localhost:4567/bilibili_manager?uid=h121234hjk&event=input_credentials&username=shuieryin&password=46127836471823
 
     @Override
     public Response serve(IHTTPSession session) {
@@ -231,7 +170,7 @@ public class ManageServer extends NanoHTTPD {
 
         try {
             if (null == bm) {
-                bm = new BilibiliManager(uid);
+                bm = new BilibiliManager();
                 bilibiliManagersMap.put(uid, bm);
             }
             returnContent = bm.handleUserInput(getParams);
@@ -309,39 +248,16 @@ public class ManageServer extends NanoHTTPD {
             switch (command) {
                 case "ibs":
                     if (null == bm) {
-                        bm = new BilibiliManager(testUid);
+                        bm = new BilibiliManager();
                         bilibiliManagersMap.put(testUid, bm);
-                    } else {
-                        bm.updateExpireTime();
                     }
                     break;
                 case "cmd":
                     executeCommandRemotely(args, true);
                     break;
-                case "limit":
-                    nm.limit(args);
-                    break;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    static String retrieveData(@SuppressWarnings("SameParameterValue") String dataName) throws IOException {
-        URL obj = new URL("http://192.168.1.111:13579/hapi/common_server?data_name=" + dataName);
-        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-        con.setRequestMethod("GET");
-
-        con.getResponseCode();
-        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-        String inputLine;
-        StringBuilder response = new StringBuilder();
-
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-
-        return response.toString();
     }
 }
