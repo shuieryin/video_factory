@@ -419,7 +419,7 @@ class BilibiliManager {
             System.out.println(pendingProcessPaths);
             for (String vidPath : pendingProcessPaths) {
                 System.out.println("vidPath: " + vidPath);
-                String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ").replaceAll("'", "\\\\'");
+                String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ");
                 long totalSeconds = videoDuration(parsedVidPath);
                 if (0 == totalSeconds) {
                     continue;
@@ -456,7 +456,7 @@ class BilibiliManager {
                 String lastProcessedClipPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String command = "ffmpeg -y -i " + parsedVidPath
+                    String command = "ffmpeg -y -i " + parsedVidPath.replaceAll("'", "\\\\'")
                             + " -ss " + startPos
 //                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
