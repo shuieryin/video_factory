@@ -23,7 +23,7 @@ class BilibiliManager {
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
 
-    private static final int WIDTH_SIZE = 1080;
+//    private static final int WIDTH_SIZE = 1080;
     private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 190;
     private static final int BIT_RATE = 8000;
@@ -141,7 +141,7 @@ class BilibiliManager {
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
                             + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
-                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
+//                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -codec:v libx264"
                             + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
