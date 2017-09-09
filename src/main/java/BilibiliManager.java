@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 class BilibiliManager {
 
-    private static final String OUTPUT_FORMAT = "flv";
+    private static final String OUTPUT_FORMAT = "mp4";
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 1;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
@@ -24,9 +24,9 @@ class BilibiliManager {
     private static final String replaceSpace = "\\s";
 
 //    private static final int WIDTH_SIZE = 1080;
-//    private static final int CRF = 5;
-//    private static final int AUDIO_BIT_RATE = 190;
-//    private static final int BIT_RATE = 8000;
+    private static final int CRF = 5;
+    private static final int AUDIO_BIT_RATE = 190;
+    private static final int BIT_RATE = 8000;
     // private static final int FPS = 50;
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
@@ -134,17 +134,17 @@ class BilibiliManager {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -y -i " + parsedVidPath
                             + " -ss " + startPos
-//                            + " -threads 0 "
-//                            + " -vsync 0 "
+                            + " -threads 0 "
+                            + " -vsync 0 "
 //                            + " -r " + FPS
-//                            + " -b " + BIT_RATE + "k"
-//                            + " -minrate " + BIT_RATE + "k"
-//                            + " -maxrate " + BIT_RATE + "k"
-//                            + " -bufsize " + BIT_RATE + "k"
-//                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
+                            + " -b " + BIT_RATE + "k"
+                            + " -minrate " + BIT_RATE + "k"
+                            + " -maxrate " + BIT_RATE + "k"
+                            + " -bufsize " + BIT_RATE + "k"
+                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
 //                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
-                            + " -codec:v copy" // libx264
-//                            + " -crf " + CRF
+                            + " -codec:v libx264"
+                            + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
                             + " " + lastProcessedClipPath;
 
