@@ -134,6 +134,7 @@ class BilibiliManager {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -y -i " + parsedVidPath
                             + " -ss " + startPos
+                            + " -threads 0 "
                             + " -vsync 0 "
 //                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
