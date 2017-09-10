@@ -25,7 +25,7 @@ class BilibiliManager {
 
 //    private static final int WIDTH_SIZE = 1080;
     private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 190;
+    private static final int AUDIO_BIT_RATE = 192;
     private static final int BIT_RATE = 8000;
     // private static final int FPS = 50;
 
