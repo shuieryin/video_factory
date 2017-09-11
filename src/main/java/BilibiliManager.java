@@ -155,17 +155,19 @@ class BilibiliManager {
                     System.out.println("clipDuration: " + clipDuration);
                     System.out.println();
 
-                    clipDuration += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
+                    clipDuration = videoDuration(lastProcessedClipPath);
 //                    String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
 //                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
                     //noinspection ResultOfMethodCallIgnored
 //                    fileSizeMatcher.find();
 
                     remainSeconds = videoDuration(lastPathToBeProcessed);
-                    if (clipDuration < remainSeconds - OVERLAP_DURATION_SECONDS) {
+                    System.out.println("remainSeconds: " + remainSeconds);
+                    System.out.println();
+                    if (clipDuration < remainSeconds) {
                         String targetChoppedPath = pending_process_folder + "/temp." + OUTPUT_FORMAT;
                         String splitCommand = "ffmpeg -y -i " + lastPathToBeProcessed
-                                + " -ss " + clipDuration
+                                + " -ss " + (clipDuration - OVERLAP_DURATION_SECONDS)
                                 + " -vcodec copy"
                                 + " " + targetChoppedPath;
                         ManageServer.executeCommandRemotely(splitCommand, true);
@@ -175,7 +177,7 @@ class BilibiliManager {
                     }
                 } while (true);
 
-                ManageServer.executeCommand("rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder + "; rm -rf " + pending_merge_folder);
+                ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
                 System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
 
