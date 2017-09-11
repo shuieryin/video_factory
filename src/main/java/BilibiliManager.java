@@ -138,7 +138,7 @@ class BilibiliManager {
                             + " -vsync 0 "
 //                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
-                            + " -minrate " + BIT_RATE + "k"
+//                            + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
                             + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
