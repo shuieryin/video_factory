@@ -19,13 +19,13 @@ class BilibiliManager {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
-    private static Pattern filesizePattern = Pattern.compile("(\\d+)");
+    //    private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
     private static final String replaceSpace = "\\s";
 
-//    private static final int WIDTH_SIZE = 1080;
+    //    private static final int WIDTH_SIZE = 1080;
     private static final int CRF = 5;
-//    private static final int AUDIO_BIT_RATE = 192;
+    //    private static final int AUDIO_BIT_RATE = 192;
     private static final int BIT_RATE = 8000;
     // private static final int FPS = 50;
 
@@ -128,14 +128,15 @@ class BilibiliManager {
                     processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
-                long startPos = 0;
+                System.out.println("totalSeconds: " + totalSeconds);
+                long clipDuration = 0, remainSeconds;
                 String lastProcessedClipPath;
+                String lastPathToBeProcessed = parsedVidPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String command = "ffmpeg -y -i " + parsedVidPath
-                            + " -ss " + startPos
-                            + " -threads 0 "
-                            + " -vsync 0 "
+                    String command = "ffmpeg -y -i " + lastPathToBeProcessed
+                            + " -threads 0"
+                            + " -vsync 0"
 //                            + " -r " + FPS
                             + " -b " + BIT_RATE + "k"
 //                            + " -minrate " + BIT_RATE + "k"
@@ -143,7 +144,7 @@ class BilibiliManager {
                             + " -bufsize " + BIT_RATE + "k"
 //                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
 //                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
-                            + " -codec:v libx264"
+                            + " -vcodec libx264"
                             + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
                             + " " + lastProcessedClipPath;
@@ -151,22 +152,28 @@ class BilibiliManager {
                     ManageServer.executeCommandRemotely(command, true);
 
                     System.out.println();
-                    System.out.println("startPos: " + startPos);
-                    System.out.println("totalSeconds: " + totalSeconds);
+                    System.out.println("clipDuration: " + clipDuration);
                     System.out.println();
 
-                    startPos += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
-                    String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
-                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
+                    clipDuration += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
+//                    String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
+//                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
                     //noinspection ResultOfMethodCallIgnored
-                    fileSizeMatcher.find();
-                    System.out.println("startPos: " + startPos);
-                } while (startPos < totalSeconds - OVERLAP_DURATION_SECONDS);
+//                    fileSizeMatcher.find();
 
-                System.out.println();
-                System.out.println("startPos: " + startPos);
-                System.out.println("totalSeconds: " + totalSeconds);
-                System.out.println();
+                    remainSeconds = videoDuration(lastPathToBeProcessed);
+                    if (clipDuration < remainSeconds - OVERLAP_DURATION_SECONDS) {
+                        String targetChoppedPath = pending_process_folder + "/temp." + OUTPUT_FORMAT;
+                        String splitCommand = "ffmpeg -y -i " + lastPathToBeProcessed
+                                + " -ss " + clipDuration
+                                + " -vcodec copy"
+                                + " " + targetChoppedPath;
+                        ManageServer.executeCommandRemotely(splitCommand, true);
+                        lastPathToBeProcessed = targetChoppedPath;
+                    } else {
+                        break;
+                    }
+                } while (true);
 
                 ManageServer.executeCommand("rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder + "; rm -rf " + pending_merge_folder);
 
