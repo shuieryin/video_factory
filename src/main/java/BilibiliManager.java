@@ -142,7 +142,7 @@ class BilibiliManager {
 //                            + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
-                            + " -c:a aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
+                            + " -acodec aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
 //                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -vcodec libx264"
                             + " -crf " + CRF
