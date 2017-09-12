@@ -81,7 +81,7 @@ class BilibiliManager {
                     ManageServer.executeCommand("echo $'\\r' >> " + parsedProcessFilePath);
                 }
                 String finalOutputName = afterConcatName.replaceAll(replaceSpace, "\\\\ ").replaceFirst("pending_merge", "pending_process");
-                String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy " + finalOutputName;
+                String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy -acodec copy " + finalOutputName;
                 ManageServer.executeCommandRemotely(concatVidsCommand, true);
             }
         } catch (Exception e) {
