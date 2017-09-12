@@ -129,12 +129,12 @@ class BilibiliManager {
                 }
 
                 System.out.println("totalSeconds: " + totalSeconds);
-                long clipDuration = 0, remainSeconds;
+                long startPos = 0;
                 String lastProcessedClipPath;
-                String lastPathToBeProcessed = parsedVidPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String command = "ffmpeg -y -i " + lastPathToBeProcessed
+                    String command = "ffmpeg -y -i " + parsedVidPath
+                            + " -ss " + startPos
                             + " -threads 0"
                             + " -vsync 0"
 //                            + " -r " + FPS
@@ -152,30 +152,11 @@ class BilibiliManager {
                     ManageServer.executeCommandRemotely(command, true);
 
                     System.out.println();
-                    System.out.println("clipDuration: " + clipDuration);
+                    System.out.println("startPos: " + startPos);
                     System.out.println();
 
-                    clipDuration = videoDuration(lastProcessedClipPath);
-//                    String rawFileSize = ManageServer.executeCommand("ls -l " + lastProcessedClipPath + " | grep -oP \"^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\K(\\S+)\" | tr -d '\\n'");
-//                    Matcher fileSizeMatcher = filesizePattern.matcher(rawFileSize);
-                    //noinspection ResultOfMethodCallIgnored
-//                    fileSizeMatcher.find();
-
-                    remainSeconds = videoDuration(lastPathToBeProcessed);
-                    System.out.println("remainSeconds: " + remainSeconds);
-                    System.out.println();
-                    if (clipDuration < remainSeconds) {
-                        String targetChoppedPath = pending_process_folder + "/temp." + OUTPUT_FORMAT;
-                        String splitCommand = "ffmpeg -y -i " + lastPathToBeProcessed
-                                + " -ss " + (clipDuration - OVERLAP_DURATION_SECONDS)
-                                + " -vcodec copy"
-                                + " " + targetChoppedPath;
-                        ManageServer.executeCommandRemotely(splitCommand, true);
-                        lastPathToBeProcessed = targetChoppedPath;
-                    } else {
-                        break;
-                    }
-                } while (true);
+                    startPos += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
+                } while (startPos < totalSeconds - OVERLAP_DURATION_SECONDS);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
