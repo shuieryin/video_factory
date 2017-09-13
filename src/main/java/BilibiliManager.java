@@ -98,8 +98,8 @@ class BilibiliManager {
             for (String vidPath : pendingProcessPaths) {
                 System.out.println("vidPath: " + vidPath);
                 String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ").replaceAll("'", "\\\\'");
-                long totalSeconds = videoDuration(parsedVidPath);
-                if (0 == totalSeconds) {
+                long totalDuration = videoDuration(parsedVidPath);
+                if (0 == totalDuration) {
                     continue;
                 }
 
@@ -128,7 +128,6 @@ class BilibiliManager {
                     processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
-                System.out.println("totalSeconds: " + totalSeconds);
                 long startPos = 0;
                 String lastProcessedClipPath;
                 do {
@@ -151,16 +150,22 @@ class BilibiliManager {
 
                     ManageServer.executeCommandRemotely(command, true);
 
+                    long lastClipDuration = videoDuration(lastProcessedClipPath);
+                    long remainDuration = totalDuration - startPos - lastClipDuration;
+
                     System.out.println();
-                    System.out.println("startPos: " + startPos);
+                    System.out.println("=========startPos: " + startPos);
+                    System.out.println("=========clipDuration: " + lastClipDuration);
+                    System.out.println("=========remainDuration: " + remainDuration);
+                    System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
 
                     startPos += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
-                } while (startPos < totalSeconds - OVERLAP_DURATION_SECONDS);
+                } while (startPos < totalDuration - OVERLAP_DURATION_SECONDS);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
-                System.out.println(processedVideo.gameName() + " total vidSeconds: " + totalSeconds + ", and chopped into " + clipCount + " part(s).");
+                System.out.println(processedVideo.gameName() + " total vidDuration: " + totalDuration + ", and chopped into " + clipCount + " part(s).");
 
                 processedGames.remove(processedGame.gameName());
             }
