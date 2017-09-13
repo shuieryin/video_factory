@@ -161,7 +161,7 @@ class BilibiliManager {
                     System.out.println();
 
                     startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
-                } while (startPos < totalDuration - 3);
+                } while (startPos < totalDuration - clipCount);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
