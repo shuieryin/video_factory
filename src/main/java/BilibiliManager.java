@@ -160,8 +160,8 @@ class BilibiliManager {
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
 
-                    startPos += videoDuration(lastProcessedClipPath) - OVERLAP_DURATION_SECONDS;
-                } while (startPos < totalDuration - OVERLAP_DURATION_SECONDS);
+                    startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
+                } while (startPos < totalDuration - 3);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
@@ -224,7 +224,9 @@ class BilibiliManager {
         int vidHour = Integer.parseInt(timerMatcher.group(1));
         int vidMinutes = Integer.parseInt(timerMatcher.group(2));
         int vidSeconds = Integer.parseInt(timerMatcher.group(3));
-        return 1 + vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
+
+        int result = vidSeconds + 60 * vidMinutes + 60 * 60 * vidHour;
+        return result <= 0 ? 0 : result + 1;
     }
 
     private void initProcessVideo() throws IOException {
