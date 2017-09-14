@@ -24,9 +24,9 @@ class BilibiliManager {
     private static final String replaceSpace = "\\s";
 
     //    private static final int WIDTH_SIZE = 1080;
-    private static final int CRF = 5;
+//    private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 192;
-    private static final int BIT_RATE = 8000;
+    private static final int BIT_RATE = 7000;
     // private static final int FPS = 50;
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
@@ -144,7 +144,7 @@ class BilibiliManager {
                             + " -acodec aac -strict -2 -b:a " + AUDIO_BIT_RATE + "k"
 //                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
                             + " -vcodec libx264"
-                            + " -crf " + CRF
+//                            + " -crf " + CRF
                             + " -fs " + LIMIT_SIZE_BYTES
                             + " " + lastProcessedClipPath;
 
@@ -154,8 +154,8 @@ class BilibiliManager {
                     long remainDuration = totalDuration - startPos - lastClipDuration;
 
                     System.out.println();
-                    System.out.println("=========startPos: " + startPos);
-                    System.out.println("=========clipDuration: " + lastClipDuration);
+                    System.out.println("=========lastClipStartPos: " + startPos);
+                    System.out.println("=========lastClipDuration: " + lastClipDuration);
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
