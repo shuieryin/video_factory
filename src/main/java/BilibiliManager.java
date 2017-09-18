@@ -129,19 +129,26 @@ class BilibiliManager {
                     processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
-                long startPos = 0;
-                long lastStartPos = 0;
+                long startPos = 0, lastStartPos = 0;
+                int chopCount = 1;
                 String lastProcessedClipPath, lastParsedVidPath = parsedVidPath;
                 do {
                     if (clipCount % CHOP_PER_COUNT == 0 && clipCount > 0) {
-                        String tempPath = pending_process_folder + "/temp." + OUTPUT_FORMAT;
+                        String tempPath = pending_process_folder + "/temp_" + chopCount + "." + OUTPUT_FORMAT;
                         String chopCommand = "ffmpeg -y -i " + lastParsedVidPath
                                 + " -ss " + lastStartPos
-                                + " -vcodec copy"
+                                + " -vcodec copy "
                                 + tempPath;
-                        lastParsedVidPath = tempPath;
                         lastStartPos = 0;
+                        System.out.println();
+                        System.out.println("=========clipCount: " + clipCount);
+                        System.out.println("=========lastStartPos: " + lastStartPos);
+                        System.out.println("=========lastParsedVidPath: " + tempPath);
+                        System.out.println();
                         ManageServer.executeCommandRemotely(chopCommand, true);
+                        ManageServer.executeCommand("rm -f " + lastParsedVidPath);
+                        lastParsedVidPath = tempPath;
+                        chopCount++;
                     }
 
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
@@ -150,7 +157,7 @@ class BilibiliManager {
                             + " -threads 0"
                             + " -vsync 0"
 //                            + " -r " + FPS
-                            + " -b " + BIT_RATE + "k"
+                            + " -b:v " + BIT_RATE + "k"
 //                            + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
                             + " -bufsize " + BIT_RATE + "k"
@@ -169,13 +176,14 @@ class BilibiliManager {
                     System.out.println();
                     System.out.println("=========lastClipStartPos: " + startPos);
                     System.out.println("=========lastClipDuration: " + lastClipDuration);
+                    System.out.println("=========clipCount: " + clipCount);
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
 
                     lastStartPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
                     startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
-                } while (startPos < totalDuration - clipCount);
+                } while (startPos < totalDuration - 2);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
 
