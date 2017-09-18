@@ -25,9 +25,10 @@ class BilibiliManager {
 
     //    private static final int WIDTH_SIZE = 1080;
 //    private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 190;
-    private static final int BIT_RATE = 8000;
+    private static final int AUDIO_BIT_RATE = 192;
+    private static final int BIT_RATE = 10000;
     // private static final int FPS = 50;
+    private static final int CHOP_PER_COUNT = 4;
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -129,11 +130,23 @@ class BilibiliManager {
                 }
 
                 long startPos = 0;
-                String lastProcessedClipPath;
+                long lastStartPos = 0;
+                String lastProcessedClipPath, lastParsedVidPath = parsedVidPath;
                 do {
+                    if (clipCount % CHOP_PER_COUNT == 0 && clipCount > 0) {
+                        String tempPath = pending_process_folder + "/temp." + OUTPUT_FORMAT;
+                        String chopCommand = "ffmpeg -y -i " + lastParsedVidPath
+                                + " -ss " + lastStartPos
+                                + " -vcodec copy"
+                                + tempPath;
+                        lastParsedVidPath = tempPath;
+                        lastStartPos = 0;
+                        ManageServer.executeCommandRemotely(chopCommand, true);
+                    }
+
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String command = "ffmpeg -y -i " + parsedVidPath
-                            + " -ss " + startPos
+                    String command = "ffmpeg -y -i " + lastParsedVidPath
+                            + " -ss " + lastStartPos
                             + " -threads 0"
                             + " -vsync 0"
 //                            + " -r " + FPS
@@ -160,6 +173,7 @@ class BilibiliManager {
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
 
+                    lastStartPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
                     startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
                 } while (startPos < totalDuration - clipCount);
 
