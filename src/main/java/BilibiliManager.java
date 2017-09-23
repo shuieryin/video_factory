@@ -155,8 +155,8 @@ class BilibiliManager {
                     String command = "ffmpeg -y -i " + lastParsedVidPath
                             + " -ss " + lastStartPos
                             + " -threads 0"
-                            + " -vsync 1"
-                            + " -r " + FPS
+                            + " -vsync 1" // fix non-monotonic pts warning
+                            + " -r " + FPS // fix past duration too large warning
                             + " -b:v " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
