@@ -27,7 +27,7 @@ class BilibiliManager {
 //    private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 192;
     private static final int BIT_RATE = 10000;
-    // private static final int FPS = 50;
+    private static final int FPS = 50;
     private static final int CHOP_PER_COUNT = 4;
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
@@ -156,7 +156,7 @@ class BilibiliManager {
                             + " -ss " + lastStartPos
                             + " -threads 0"
                             + " -vsync 1"
-//                            + " -r " + FPS
+                            + " -r " + FPS
                             + " -b:v " + BIT_RATE + "k"
                             + " -minrate " + BIT_RATE + "k"
                             + " -maxrate " + BIT_RATE + "k"
