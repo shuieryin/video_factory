@@ -183,7 +183,7 @@ public class ManageServer extends NanoHTTPD {
     }
 
     static void executeCommandRemotely(String command, boolean isEncode) {
-        System.out.println("executing command remotely: [" + command + "]");
+        System.out.println("=======executing command remotely: [" + command + "]");
         try {
             String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
             commandOut.writeUTF(encodedCommand);
@@ -202,7 +202,7 @@ public class ManageServer extends NanoHTTPD {
         StringBuilder output = new StringBuilder();
 
         try {
-            System.out.println("executing command: [" + command + "]");
+            System.out.println("=======executing command: [" + command + "]");
             String[] cmd = {
                     "/bin/bash",
                     "-c",
