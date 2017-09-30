@@ -59,7 +59,7 @@ class BilibiliManager {
                 String parsed_pending_process_folder;
                 String parsedProcessFilePath = "";
                 for (int i = 0; i < vidsPath.size(); i++) {
-                    String vidPath = vidsPath.get(i).replaceAll("'", "\\\\'");
+                    String vidPath = vidsPath.get(i).replaceAll("'", "\\\\'").replaceAll("\\(", "\\\\(").replaceAll("\\)", "\\\\)");
                     System.out.println("vidPath: " + vidPath);
                     if (i == 0) {
                         afterConcatName = vidPath;
@@ -98,7 +98,7 @@ class BilibiliManager {
             System.out.println(pendingProcessPaths);
             for (String vidPath : pendingProcessPaths) {
                 System.out.println("vidPath: " + vidPath);
-                String parsedVidPath = vidPath.replaceAll(replaceSpace, "\\\\ ").replaceAll("'", "\\\\'");
+                String parsedVidPath = Common.strParse(vidPath);
                 long totalDuration = videoDuration(parsedVidPath);
                 if (0 == totalDuration) {
                     continue;
@@ -111,7 +111,7 @@ class BilibiliManager {
                     System.out.println("vidPath not found: " + vidPath);
                     continue;
                 }
-                String pending_process_folder = vidPathMatcher.group(1).replaceAll(replaceSpace, "\\\\ ").replaceAll("'", "\\\\'");
+                String pending_process_folder = Common.strParse(vidPathMatcher.group(1));
                 String pending_merge_folder = pending_process_folder.replaceFirst("pending_process", "pending_merge");
                 String gameName = vidPathMatcher.group(3);
 

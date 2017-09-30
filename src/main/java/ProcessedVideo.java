@@ -17,7 +17,7 @@ class ProcessedVideo {
         vidPathMatcher.find();
 
         gameName = vidPathMatcher.group(3);
-        processedPath = "/srv/grand_backup/samba/vids/processed/" + gameName.replaceAll("\\s", "\\\\ ").replaceAll("'", "\\\\'") + "/"; // + videoName.replaceAll(replaceSpace, "\\\\ ") + "/";;
+        processedPath = "/srv/grand_backup/samba/vids/processed/" + Common.strParse(gameName) + "/";
         ManageServer.executeCommand("mkdir -p " + processedPath); // + "; rm -f " + processedPath + "*");
 
         LocalDateTime timePoint = LocalDateTime.of(
