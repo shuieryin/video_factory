@@ -19,7 +19,6 @@ class BilibiliManager {
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
-    //    private static Pattern filesizePattern = Pattern.compile("(\\d+)");
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
 
     //    private static final int WIDTH_SIZE = 1080;
