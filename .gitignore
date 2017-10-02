@@ -8,3 +8,4 @@ gen
 target
 .DS_Store
 src/test/
+src/main/java/META-INF/
