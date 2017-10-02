@@ -21,9 +21,9 @@ class ProcessedVideo {
         ManageServer.executeCommand("mkdir -p " + processedPath); // + "; rm -f " + processedPath + "*");
 
         LocalDateTime timePoint = LocalDateTime.of(
+                Integer.parseInt(vidPathMatcher.group(6)),
                 Integer.parseInt(vidPathMatcher.group(4)),
                 Integer.parseInt(vidPathMatcher.group(5)),
-                Integer.parseInt(vidPathMatcher.group(6)),
                 Integer.parseInt(vidPathMatcher.group(7)),
                 Integer.parseInt(vidPathMatcher.group(8)),
                 Integer.parseInt(vidPathMatcher.group(9))
