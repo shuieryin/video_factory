@@ -51,10 +51,12 @@ class BilibiliManager {
             }
 
             for (Map.Entry<String, List<String>> entry : pendingMergeVidsInfos.entrySet()) {
-                String afterConcatName = "";
                 List<String> vidsPath = entry.getValue();
-                String processFilePath;
-                String parsedProcessFilePath = "";
+                if (vidsPath.isEmpty()) {
+                    continue;
+                }
+
+                String processFilePath, gameFolder = "", parsedProcessFilePath = "", pending_process_folder = "", afterConcatName = "";
                 for (int i = 0; i < vidsPath.size(); i++) {
                     String oriPath = vidsPath.get(i);
                     String vidPath = Common.strParse(oriPath);
@@ -66,22 +68,28 @@ class BilibiliManager {
                             System.out.println("=======vidPath not found: " + oriPath);
                             continue;
                         }
-                        String gameFolder = Common.strParse(vidPathMatcher.group(1));
+                        gameFolder = Common.strParse(vidPathMatcher.group(1));
                         System.out.println("=======gameFolder: " + gameFolder);
                         String gameName = Common.strParse(vidPathMatcher.group(3));
-                        String pending_process_folder = gameFolder.replaceFirst("pending_merge", "pending_process");
+                        pending_process_folder = gameFolder.replaceFirst("pending_merge", "pending_process");
+                        System.out.println("=======pending_process_folder: " + pending_process_folder);
                         processFilePath = pending_process_folder + "/" + gameName + ".txt";
                         parsedProcessFilePath = processFilePath;
                         System.out.println("=======parsedProcessFilePath: " + parsedProcessFilePath);
                         ManageServer.executeCommand("rm -rf " + pending_process_folder);
                         ManageServer.executeCommand("mkdir -p " + pending_process_folder);
                     }
+
                     ManageServer.executeCommand("echo \"file " + vidPath + "\" | tee -a " + parsedProcessFilePath);
                     ManageServer.executeCommand("echo $'\\r' >> " + parsedProcessFilePath);
                 }
-                String finalOutputName = afterConcatName.replaceFirst("pending_merge", "pending_process");
-                String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy -acodec copy " + finalOutputName;
-                ManageServer.executeCommandRemotely(concatVidsCommand, true);
+                if (vidsPath.size() == 1) {
+                    ManageServer.executeCommand("mv " + gameFolder + " " + pending_process_folder);
+                } else {
+                    String finalOutputName = afterConcatName.replaceFirst("pending_merge", "pending_process");
+                    String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy -acodec copy " + finalOutputName;
+                    ManageServer.executeCommandRemotely(concatVidsCommand, true);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -95,7 +103,7 @@ class BilibiliManager {
             List<String> pendingProcessPaths = pendingProcessVids("/srv/grand_backup/samba/vids/pending_process", false);
             System.out.println(pendingProcessPaths);
             for (String vidPath : pendingProcessPaths) {
-                System.out.println("vidPath: " + vidPath);
+                System.out.println("=======vidPath: " + vidPath);
                 String parsedVidPath = Common.strParse(vidPath);
                 long totalDuration = videoDuration(parsedVidPath);
                 if (0 == totalDuration) {
@@ -106,11 +114,11 @@ class BilibiliManager {
 
                 Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
                 if (!vidPathMatcher.find()) {
-                    System.out.println("vidPath not found: " + vidPath);
+                    System.out.println("=======vidPath not found: " + vidPath);
                     continue;
                 }
                 String pending_process_folder = Common.strParse(vidPathMatcher.group(1));
-                String pending_merge_folder = pending_process_folder.replaceFirst("pending_process", "pending_merge");
+                //String pending_merge_folder = pending_process_folder.replaceFirst("pending_process", "pending_merge");
                 String gameName = vidPathMatcher.group(3);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
@@ -183,9 +191,9 @@ class BilibiliManager {
                     System.out.println();
                 } while (startPos < totalDuration - 2);
 
-                ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
+                ManageServer.executeCommand("rm -rf " + pending_process_folder); // "rm -rf " + pending_merge_folder
 
-                System.out.println(processedVideo.gameName() + " total vidDuration: " + totalDuration + ", and chopped into " + clipCount + " part(s).");
+                System.out.println("=======" + processedVideo.gameName() + " total vidDuration: " + totalDuration + ", and chopped into " + clipCount + " part(s).");
 
                 processedGames.remove(processedGame.gameName());
             }
@@ -193,7 +201,7 @@ class BilibiliManager {
             e.printStackTrace();
         }
 
-        System.out.println("process videos done");
+        System.out.println("=======process videos done");
         System.out.println();
 
         System.exit(0);
