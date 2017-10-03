@@ -149,7 +149,7 @@ class BilibiliManager {
                         chopCount++;
                     }
 
-                    lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
+                    lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (clipCount++) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -y -i " + lastParsedVidPath
                             + " -ss " + lastStartPos
                             + " -threads 0"
@@ -171,16 +171,16 @@ class BilibiliManager {
                     long lastClipDuration = videoDuration(lastProcessedClipPath);
                     long remainDuration = totalDuration - startPos - lastClipDuration;
 
+                    lastStartPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
+                    startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
+
                     System.out.println();
-                    System.out.println("=========lastClipStartPos: " + startPos);
                     System.out.println("=========lastClipDuration: " + lastClipDuration);
+                    System.out.println("=========ClipStartPos: " + startPos);
                     System.out.println("=========clipCount: " + clipCount);
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
-
-                    lastStartPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
-                    startPos += lastClipDuration - OVERLAP_DURATION_SECONDS;
                 } while (startPos < totalDuration - 2);
 
                 ManageServer.executeCommand("rm -rf " + pending_merge_folder); // "rm -f " + parsedVidPath + "; rm -rf " + pending_process_folder +
