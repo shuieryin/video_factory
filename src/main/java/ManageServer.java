@@ -119,8 +119,11 @@ public class ManageServer extends NanoHTTPD {
                             processVideoScheduler = scheduler.schedule(
                                     () -> {
                                         for (BilibiliManager bm : bilibiliManagersMap.values()) {
-                                            bm.mergeVideos();
-                                            bm.processVideos();
+                                            Map<String, ProcessedGame> games = bm.mergeVideos();
+                                            while (!games.isEmpty()) {
+                                                bm.processVideos();
+                                                games = bm.mergeVideos();
+                                            }
                                         }
                                     },
                                     2,
