@@ -58,7 +58,7 @@ class BilibiliManager {
                     continue;
                 }
 
-                String processFilePath, gameFolder = "", parsedProcessFilePath = "", pending_process_folder = "", afterConcatName = "";
+                String processFilePath, gameFolder = "", parsedProcessFilePath = "", pending_process_folder, afterConcatName = "";
                 for (int i = 0; i < vidsPath.size(); i++) {
                     String oriPath = vidsPath.get(i);
                     String vidPath = Common.strParse(oriPath);
