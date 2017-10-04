@@ -176,7 +176,7 @@ class BilibiliManager {
                         chopCount++;
                     }
 
-                    lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (clipCount++) + "." + OUTPUT_FORMAT;
+                    lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String command = "ffmpeg -y -i " + lastParsedVidPath
                             + " -ss " + lastStartPos
                             + " -threads 0"
@@ -204,7 +204,7 @@ class BilibiliManager {
                     System.out.println();
                     System.out.println("=========lastClipDuration: " + lastClipDuration);
                     System.out.println("=========ClipStartPos: " + startPos);
-                    System.out.println("=========clipCount: " + clipCount);
+                    System.out.println("=========clipCount: " + (clipCount + 1));
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
