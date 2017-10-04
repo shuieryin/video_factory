@@ -20,6 +20,8 @@ class BilibiliManager {
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
+    private static final String PENDING_MERGE_PATH = "/srv/grand_backup/samba/vids/pending_merge";
+    private static final String PENDING_PROCESS_PATH = "/srv/grand_backup/samba/vids/pending_process";
 
     //    private static final int WIDTH_SIZE = 1080;
 //    private static final int CRF = 5;
@@ -37,7 +39,7 @@ class BilibiliManager {
     void mergeVideos() {
         try {
             System.out.println("=======merging videos...");
-            List<String> pendingMergePaths = pendingProcessVids("/srv/grand_backup/samba/vids/pending_merge", false);
+            List<String> pendingMergePaths = pendingProcessVids(PENDING_MERGE_PATH, false);
             Map<String, List<String>> pendingMergeVidsInfos = new HashMap<>();
             for (String vidPath : pendingMergePaths) {
                 Matcher vidPathMatcher = vidPathPattern.matcher(vidPath);
@@ -84,7 +86,7 @@ class BilibiliManager {
                     ManageServer.executeCommand("echo $'\\r' >> " + parsedProcessFilePath);
                 }
                 if (vidsPath.size() == 1) {
-                    ManageServer.executeCommand("mv " + gameFolder + " " + pending_process_folder);
+                    ManageServer.executeCommand("cp " + gameFolder + " " + PENDING_PROCESS_PATH);
                 } else {
                     String finalOutputName = afterConcatName.replaceFirst("pending_merge", "pending_process");
                     String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy -acodec copy " + finalOutputName;
