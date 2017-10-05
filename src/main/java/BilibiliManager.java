@@ -204,7 +204,9 @@ class BilibiliManager {
                     System.out.println();
                     System.out.println("=========lastClipDuration: " + lastClipDuration);
                     System.out.println("=========ClipStartPos: " + startPos);
-                    System.out.println("=========clipCount: " + (clipCount + 1));
+                    if (remainDuration > 0) {
+                        System.out.println("=========clipCount: " + (clipCount + 1));
+                    }
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
                     System.out.println();
