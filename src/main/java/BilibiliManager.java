@@ -68,7 +68,7 @@ class BilibiliManager {
                     continue;
                 }
 
-                String processFilePath, pendingMergeFolder = "", parsedProcessFilePath = "", pendingProcessFolder, firstVidPath = "";
+                String processFilePath, pendingMergeFolder, parsedProcessFilePath = "", pendingProcessFolder = "", firstVidPath = "";
                 for (int i = 0; i < vidsPath.size(); i++) {
                     String oriPath = vidsPath.get(i);
                     String vidPath = Common.strParse(oriPath);
@@ -101,7 +101,7 @@ class BilibiliManager {
                     ManageServer.executeCommand("echo $'\\r' >> " + parsedProcessFilePath);
                 }
                 if (vidsPath.size() == 1) {
-                    ManageServer.executeCommand("cp " + firstVidPath + " " + PENDING_PROCESS_PATH);
+                    ManageServer.executeCommand("cp " + firstVidPath + " " + pendingProcessFolder);
                 } else {
                     String finalOutputName = firstVidPath.replaceFirst("pending_merge", "pending_process");
                     String concatVidsCommand = "ffmpeg -f concat -safe 0 -i " + parsedProcessFilePath + " -vcodec copy -acodec copy " + finalOutputName;
