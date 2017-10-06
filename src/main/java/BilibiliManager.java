@@ -166,9 +166,7 @@ class BilibiliManager {
                                 + tempPath;
                         lastStartPos = 0;
                         System.out.println();
-                        System.out.println("=========clipCount: " + clipCount);
-                        System.out.println("=========lastStartPos: " + lastStartPos);
-                        System.out.println("=========lastParsedVidPath: " + tempPath);
+                        System.out.println("=========target pending process VidPath: " + tempPath);
                         System.out.println();
                         ManageServer.executeCommandRemotely(chopCommand, true);
                         ManageServer.executeCommand("rm -f " + lastParsedVidPath);
@@ -205,7 +203,7 @@ class BilibiliManager {
                     System.out.println("=========lastClipDuration: " + lastClipDuration);
                     System.out.println("=========ClipStartPos: " + startPos);
                     if (remainDuration > 0) {
-                        System.out.println("=========clipCount: " + (clipCount + 1));
+                        System.out.println("=========target clipCount: " + (clipCount + 1));
                     }
                     System.out.println("=========remainDuration: " + remainDuration);
                     System.out.println("=========totalDuration: " + totalDuration);
@@ -221,6 +219,7 @@ class BilibiliManager {
                     removePendingMergeVidsInfosBuilder.append(Common.strParse(pendingMergeVidPath));
                     removePendingMergeVidsInfosBuilder.append(" ");
                     removePendingMergeVidsInfosBuilder.append(MERGED_PATH);
+                    removePendingMergeVidsInfosBuilder.append(Common.strParse(gameName));
                     removePendingMergeVidsInfosBuilder.append("/; ");
                 }
 
