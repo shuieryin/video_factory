@@ -210,17 +210,16 @@ class BilibiliManager {
                     System.out.println();
                 } while (startPos < totalDuration - 2);
 
+                String mergedPath = MERGED_PATH + "/" + Common.strParse(gameName);
                 StringBuilder removePendingMergeVidsInfosBuilder = new StringBuilder();
                 removePendingMergeVidsInfosBuilder.append("mkdir -p ");
-                removePendingMergeVidsInfosBuilder.append(MERGED_PATH);
+                removePendingMergeVidsInfosBuilder.append(mergedPath);
                 removePendingMergeVidsInfosBuilder.append("; ");
                 for (String pendingMergeVidPath : processedGame.pendingMergeVidsInfos()) {
                     removePendingMergeVidsInfosBuilder.append("mv ");
                     removePendingMergeVidsInfosBuilder.append(Common.strParse(pendingMergeVidPath));
                     removePendingMergeVidsInfosBuilder.append(" ");
-                    removePendingMergeVidsInfosBuilder.append(MERGED_PATH);
-                    removePendingMergeVidsInfosBuilder.append("/");
-                    removePendingMergeVidsInfosBuilder.append(Common.strParse(gameName));
+                    removePendingMergeVidsInfosBuilder.append(mergedPath);
                     removePendingMergeVidsInfosBuilder.append("/; ");
                 }
 
