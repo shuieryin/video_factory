@@ -219,6 +219,7 @@ class BilibiliManager {
                     removePendingMergeVidsInfosBuilder.append(Common.strParse(pendingMergeVidPath));
                     removePendingMergeVidsInfosBuilder.append(" ");
                     removePendingMergeVidsInfosBuilder.append(MERGED_PATH);
+                    removePendingMergeVidsInfosBuilder.append("/");
                     removePendingMergeVidsInfosBuilder.append(Common.strParse(gameName));
                     removePendingMergeVidsInfosBuilder.append("/; ");
                 }
