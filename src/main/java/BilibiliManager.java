@@ -237,8 +237,6 @@ class BilibiliManager {
 
         System.out.println("=======process videos done");
         System.out.println();
-
-        System.exit(0);
     }
 
     private List<String> pendingProcessVids(String path, boolean isGetDones) throws IOException {
