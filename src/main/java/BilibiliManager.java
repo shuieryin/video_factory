@@ -43,6 +43,7 @@ class BilibiliManager {
             System.out.println("=======merging videos...");
             List<String> pendingMergePaths = pendingProcessVids(PENDING_MERGE_PATH, false);
             if (pendingMergePaths.isEmpty()) {
+                System.out.println("=======no videos to merge...");
                 return processedGames;
             }
 

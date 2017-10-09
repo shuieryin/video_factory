@@ -125,6 +125,7 @@ public class ManageServer extends NanoHTTPD {
                                                 games = bm.mergeVideos();
                                             }
                                         }
+                                        System.exit(0);
                                     },
                                     2,
                                     TimeUnit.SECONDS
