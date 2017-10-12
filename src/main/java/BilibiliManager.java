@@ -20,6 +20,7 @@ class BilibiliManager {
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
     private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
+    private static final String SOURCE_PATH = "/run/user/1000/gvfs/smb-share:server=192.168.1.111,share=smbshare/vids/pending_merge";
     private static final String PENDING_MERGE_PATH = "/srv/grand_backup/samba/vids/pending_merge";
     private static final String MERGED_PATH = "/srv/grand_backup/samba/vids/merged";
     private static final String PENDING_PROCESS_PATH = "/srv/grand_backup/samba/vids/pending_process";
@@ -34,6 +35,7 @@ class BilibiliManager {
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
     BilibiliManager() throws InterruptedException, IOException {
+        ManageServer.executeCommand("cp " + SOURCE_PATH + " " + PENDING_MERGE_PATH);
         initProcessVideo();
     }
 
@@ -87,7 +89,7 @@ class BilibiliManager {
 
                         String gameName = Common.strParse(vidPathMatcher.group(3));
 
-                        pendingProcessFolder = pendingMergeFolder.replaceFirst("pending_merge", "pending_process");
+                        pendingProcessFolder = PENDING_PROCESS_PATH + "/" + gameName;
                         processedGame.setPendingProcessFolder(pendingProcessFolder);
                         System.out.println("=======pendingProcessFolder: " + pendingProcessFolder);
 
