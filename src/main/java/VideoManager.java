@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 class VideoManager {
 
-    private static final String OUTPUT_FORMAT = "mp4";
+    private static final String OUTPUT_FORMAT = "flv";
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 1;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
@@ -25,12 +25,74 @@ class VideoManager {
     private static final String MERGED_PATH = "/srv/grand_backup/samba/vids/merged";
     private static final String PENDING_PROCESS_PATH = "/srv/grand_backup/samba/vids/pending_process";
 
-    //    private static final int WIDTH_SIZE = 1080;
-//    private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 192;
-    private static final int BIT_RATE = 10000;
-    private static final int FPS = 50;
-    private static final int CHOP_PER_COUNT = 4;
+    private static final int HEIGHT_SIZE = 1280;
+    private static final int WIDTH_SIZE = 720;
+    //    private static final int CRF = 5;
+    private static final int AUDIO_BIT_RATE = 128;
+    private static final int BIT_RATE = 1700;
+//    private static final int FPS = 50;
+
+    private static final String ENCODE_PARAMS = " " +
+            "  -threads 0 " +
+            "  -vsync 1 " +
+            "  -b:v " + BIT_RATE + "k " +
+            "  -minrate " + BIT_RATE + "k " +
+            "  -maxrate " + BIT_RATE + "k " +
+            "  -bufsize 10M " +
+            "  -acodec aac -strict -2 -sample_rate 44100 -b:a " + AUDIO_BIT_RATE + "k " +
+            "  -vcodec libx264 " +
+            "  -x264opts " +
+            "threads=0:" +
+            "8x8dct=1:" +
+            "partitions=all:" +
+            "subme=10:" +
+            "b-adapt=2:" +
+            "scenecut=40:" +
+            "deblock=0,0:" +
+            "ipratio=1.41:" +
+            "direct=auto:" +
+            "chroma-qp-offset=1:" +
+            "colormatrix=smpte170m:" +
+            "keyint=240:" +
+            "me=umh:" +
+            "merange=16:" +
+            "mixed-refs=1:" +
+            "psy-rd=0.5,0.0:" +
+            "qcomp=0.6:" +
+            "qpmax=51:" +
+            "qpmin=10:" +
+            "qpstep=4:" +
+            "trellis=2:" +
+            "weightb=1 " +
+            "  -g 240 " +
+            "  -b_strategy 2 " +
+            "  -chromaoffset 1 " +
+            "  -sc_threshold 40 " +
+            "  -tune film " +
+            "  -partitions all " +
+            "  -subq 10 " +
+            "  -me_method full " +
+            "  -i_qfactor 1.41 " +
+            "  -me_range 16 " +
+            "  -qmin 10 " +
+            "  -qmax 51 " +
+            "  -qdiff 4 " +
+            "  -trellis 2 " +
+            "  -vf " +
+            "scale=" +
+            "w=" + HEIGHT_SIZE + ":" +
+            "h=" + WIDTH_SIZE + "," +
+            "unsharp=" +
+            "luma_msize_x=5:" +
+            "luma_msize_y=5:" +
+            "luma_amount=1.5," +
+            "vaguedenoiser=" +
+            "threshold=4:" +
+            "method=2 " +
+            "  -color_primaries film " +
+            "  -color_trc smpte170m " +
+            "  -colorspace smpte170m " +
+            "  -color_range tv ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -122,6 +184,7 @@ class VideoManager {
     void processVideos() {
         System.out.println();
         System.out.println("=======processing videos...");
+
         try {
             List<String> pendingProcessPaths = pendingProcessVids(PENDING_PROCESS_PATH, false);
             System.out.println(pendingProcessPaths);
@@ -157,44 +220,25 @@ class VideoManager {
                     processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
+                String firstPassCommand = "ffmpeg -y -i " +
+                        parsedVidPath +
+                        ENCODE_PARAMS +
+                        " -pass 1 -f mp4 /dev/null";
+                ManageServer.executeCommandRemotely(firstPassCommand, true);
+
                 long startPos = 0, lastStartPos = 0;
-                int chopCount = 1;
-                String lastProcessedClipPath, lastParsedVidPath = parsedVidPath;
+                String lastProcessedClipPath;
                 do {
-                    if (clipCount % CHOP_PER_COUNT == 0 && clipCount > 0) {
-                        String tempPath = processedGame.pendingProcessFolder() + "/temp_" + chopCount + "." + OUTPUT_FORMAT;
-                        String chopCommand = "ffmpeg -y -i " + lastParsedVidPath
-                                + " -ss " + lastStartPos
-                                + " -vcodec copy "
-                                + tempPath;
-                        lastStartPos = 0;
-                        System.out.println();
-                        System.out.println("=========target pending process VidPath: " + tempPath);
-                        System.out.println();
-                        ManageServer.executeCommandRemotely(chopCommand, true);
-                        ManageServer.executeCommand("rm -f " + lastParsedVidPath);
-                        lastParsedVidPath = tempPath;
-                        chopCount++;
-                    }
-
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String command = "ffmpeg -y -i " + lastParsedVidPath
-                            + " -ss " + lastStartPos
-                            + " -threads 0"
-                            + " -vsync 1" // fix non-monotonic pts warning
-                            + " -r " + FPS // fix past duration too large warning
-                            + " -b:v " + BIT_RATE + "k"
-                            + " -minrate " + BIT_RATE + "k"
-                            + " -maxrate " + BIT_RATE + "k"
-                            + " -bufsize " + BIT_RATE + "k"
-                            + " -acodec aac -strict -2 -sample_rate 44100 -b:a " + AUDIO_BIT_RATE + "k"
-//                            + " -vf scale=w=-1:h=" + WIDTH_SIZE + ":force_original_aspect_ratio=decrease"
-                            + " -vcodec libx264"
-//                            + " -crf " + CRF
-                            + " -fs " + LIMIT_SIZE_BYTES
-                            + " " + lastProcessedClipPath;
+                    String secondPassCommand = "ffmpeg -y -i " +
+                            parsedVidPath +
+                            " -ss " + lastStartPos +
+                            ENCODE_PARAMS +
+                            " -fs " + LIMIT_SIZE_BYTES +
+                            " -pass 2 " +
+                            lastProcessedClipPath;
 
-                    ManageServer.executeCommandRemotely(command, true);
+                    ManageServer.executeCommandRemotely(secondPassCommand, true);
 
                     long lastClipDuration = videoDuration(lastProcessedClipPath);
                     long remainDuration = totalDuration - startPos - lastClipDuration;
