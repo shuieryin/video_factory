@@ -29,7 +29,7 @@ class VideoManager {
     private static final int WIDTH_SIZE = 720;
     //    private static final int CRF = 5;
     private static final int AUDIO_BIT_RATE = 128;
-    private static final int BIT_RATE = 1700;
+    private static final int BIT_RATE = 1650;
 //    private static final int FPS = 50;
 
     private static final String ENCODE_PARAMS = " " +
