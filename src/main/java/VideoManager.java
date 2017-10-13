@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 class VideoManager {
 
-    private static final String OUTPUT_FORMAT = "flv";
+    private static final String OUTPUT_FORMAT = "mp4";
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 1;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
