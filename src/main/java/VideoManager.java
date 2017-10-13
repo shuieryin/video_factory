@@ -63,7 +63,10 @@ class VideoManager {
             "qpmin=10:" +
             "qpstep=4:" +
             "trellis=2:" +
-            "weightb=1 " +
+            "weightb=1:" +
+            "no-fast-pskip=1:" +
+            "deadzone-intra=1:" +
+            "no-dct-decimate=1 " +
             "  -g 240 " +
             "  -b_strategy 2 " +
             "  -chromaoffset 1 " +
@@ -78,6 +81,7 @@ class VideoManager {
             "  -qmax 51 " +
             "  -qdiff 4 " +
             "  -trellis 2 " +
+            "  -mbd rd " +
             "  -vf " +
             "scale=" +
             "w=" + HEIGHT_SIZE + ":" +
