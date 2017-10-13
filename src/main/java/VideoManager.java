@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-class BilibiliManager {
+class VideoManager {
 
     private static final String OUTPUT_FORMAT = "mp4";
     @SuppressWarnings("FieldCanBeLocal")
@@ -34,7 +34,7 @@ class BilibiliManager {
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
-    BilibiliManager() throws InterruptedException, IOException {
+    VideoManager() throws InterruptedException, IOException {
         ManageServer.executeCommand("cp " + SOURCE_PATH + " " + PENDING_MERGE_PATH);
         initProcessVideo();
     }

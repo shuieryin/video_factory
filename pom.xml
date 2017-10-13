@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.shuieryin</groupId>
-    <artifactId>bilibili_upload</artifactId>
+    <artifactId>video_factory</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <build>

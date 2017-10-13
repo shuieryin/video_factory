@@ -22,7 +22,7 @@ public class ManageServer extends NanoHTTPD {
     @SuppressWarnings("WeakerAccess")
     static final String ROOT_PATH = "/home/shuieryin/";
     private static final int SCHEDULE_INTERVAL_MINUTES = 1; // 5
-    private static Map<String, BilibiliManager> bilibiliManagersMap = new HashMap<>();
+    private static Map<String, VideoManager> videoManagersMap = new HashMap<>();
     private ScheduledFuture<?> processVideoScheduler;
     private static Runtime rt = Runtime.getRuntime();
     private Socket commandSocket;
@@ -118,7 +118,7 @@ public class ManageServer extends NanoHTTPD {
                         if (null == processVideoScheduler || processVideoScheduler.isDone()) {
                             processVideoScheduler = scheduler.schedule(
                                     () -> {
-                                        for (BilibiliManager bm : bilibiliManagersMap.values()) {
+                                        for (VideoManager bm : videoManagersMap.values()) {
                                             Map<String, ProcessedGame> games = bm.mergeVideos();
                                             while (!games.isEmpty()) {
                                                 bm.processVideos();
@@ -163,19 +163,19 @@ public class ManageServer extends NanoHTTPD {
         System.out.println();
         // Print request info - END
 
-        if (!session.getUri().equalsIgnoreCase("/bilibili_manager")) {
+        if (!session.getUri().equalsIgnoreCase("/video_factory_manager")) {
             return newFixedLengthResponse("invalid commands!");
         }
 
         String returnContent = "";
 
         String uid = getParams.get("uid").get(0);
-        BilibiliManager bm = bilibiliManagersMap.get(uid);
+        VideoManager bm = videoManagersMap.get(uid);
 
         try {
             if (null == bm) {
-                bm = new BilibiliManager();
-                bilibiliManagersMap.put(uid, bm);
+                bm = new VideoManager();
+                videoManagersMap.put(uid, bm);
             }
             returnContent = bm.handleUserInput(getParams);
             System.out.println("Response payload: " + requestMainInfo);
@@ -248,12 +248,12 @@ public class ManageServer extends NanoHTTPD {
         String args = inputMatcher.group(2);
         try {
             String testUid = "ogD_CvtfTf1fGpNV-dVrbgQ9I76c";
-            BilibiliManager bm = bilibiliManagersMap.get(testUid);
+            VideoManager bm = videoManagersMap.get(testUid);
             switch (command) {
                 case "ibs":
                     if (null == bm) {
-                        bm = new BilibiliManager();
-                        bilibiliManagersMap.put(testUid, bm);
+                        bm = new VideoManager();
+                        videoManagersMap.put(testUid, bm);
                     }
                     break;
                 case "cmd":
