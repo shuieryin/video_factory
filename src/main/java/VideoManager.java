@@ -34,12 +34,14 @@ class VideoManager {
             "  -threads 0 " +
             "  -vsync 1 " +
             "  -b:v " + BIT_RATE + "k " +
+            "  -minrate " + BIT_RATE + "k " +
             "  -maxrate " + BIT_RATE + "k " +
-            "  -bufsize 10M " +
+            "  -bufsize " + BIT_RATE + "k " +
             "  -acodec aac -ar " + SAMPLE_RATE + " " +
             "  -vcodec libx264 " +
             "  -x264opts " +
             "threads=0:" +
+            "nal-hrd=cbr:" +
             "8x8dct=1:" +
             "partitions=all:" +
             "subme=10:" +
