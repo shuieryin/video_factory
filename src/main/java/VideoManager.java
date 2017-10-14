@@ -35,14 +35,12 @@ class VideoManager {
             "  -threads 0 " +
             "  -vsync 1 " +
             "  -b:v " + TWO_PASS_BIT_RATE + "k " +
-            "  -minrate " + TWO_PASS_BIT_RATE + "k " +
             "  -maxrate " + TWO_PASS_BIT_RATE + "k " +
-            "  -bufsize " + TWO_PASS_BIT_RATE + "k " +
+            "  -bufsize 10M " +
             "  -acodec aac -ar " + SAMPLE_RATE + " " +
             "  -vcodec libx264 " +
             "  -x264opts " +
             "threads=0:" +
-            "nal-hrd=cbr:" +
             "8x8dct=1:" +
             "partitions=all:" +
             "subme=10:" +
