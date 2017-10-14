@@ -27,7 +27,7 @@ class VideoManager {
 
     private static final int HEIGHT_SIZE = 1280;
     private static final int WIDTH_SIZE = 720;
-    private static final int BIT_RATE = 1760;
+    private static final int BIT_RATE = 1650;
     private static final int SAMPLE_RATE = 44100;
 
     private static final String ENCODE_PARAMS = " " +
