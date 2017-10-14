@@ -27,16 +27,17 @@ class VideoManager {
 
     private static final int HEIGHT_SIZE = 1280;
     private static final int WIDTH_SIZE = 720;
-    private static final int BIT_RATE = 1600;
+    private static final int TWO_PASS_BIT_RATE = 1760;
+    private static final int THREE_PASS_BIT_RATE = 1700;
     private static final int SAMPLE_RATE = 44100;
 
-    private static final String ENCODE_PARAMS = " " +
+    private static final String TWO_PASS_ENCODE_PARAMS = " " +
             "  -threads 0 " +
             "  -vsync 1 " +
-            "  -b:v " + BIT_RATE + "k " +
-            "  -minrate " + BIT_RATE + "k " +
-            "  -maxrate " + BIT_RATE + "k " +
-            "  -bufsize " + BIT_RATE + "k " +
+            "  -b:v " + TWO_PASS_BIT_RATE + "k " +
+            "  -minrate " + TWO_PASS_BIT_RATE + "k " +
+            "  -maxrate " + TWO_PASS_BIT_RATE + "k " +
+            "  -bufsize " + TWO_PASS_BIT_RATE + "k " +
             "  -acodec aac -ar " + SAMPLE_RATE + " " +
             "  -vcodec libx264 " +
             "  -x264opts " +
@@ -96,6 +97,14 @@ class VideoManager {
             "  -color_trc smpte170m " +
             "  -colorspace smpte170m " +
             "  -color_range tv ";
+
+    private static final String THREE_PASS_ENCODE_PARAMS = " " +
+            "    -threads 0 " +
+            "    -b:v " + THREE_PASS_BIT_RATE + "k " +
+            "    -maxrate " + THREE_PASS_BIT_RATE + "k " +
+            "    -bufsize " + THREE_PASS_BIT_RATE + "k " +
+            "    -vcodec libx264 " +
+            "    z9G-3-720-two-pass-170m-full-1760-mp4-13-2.mp4";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -225,10 +234,16 @@ class VideoManager {
                     processedGame.addProcessedVideo(vidPath, processedVideo);
                 }
 
+                String twoPassedFilePath = PENDING_PROCESS_PATH + "/" + Common.strParse(gameName) + "/temp.mp4";
                 String firstPassCommand = "ffmpeg -y -i " +
                         parsedVidPath +
-                        ENCODE_PARAMS +
-                        " -pass 1 -f mp4 /dev/null";
+                        TWO_PASS_ENCODE_PARAMS +
+                        " -pass 1 -f mp4 /dev/null " +
+                        " && ffmpeg -y -i " +
+                        parsedVidPath +
+                        TWO_PASS_ENCODE_PARAMS +
+                        " -pass 2 " +
+                        twoPassedFilePath;
                 ManageServer.executeCommandRemotely(firstPassCommand, true);
 
                 long startPos = 0, lastStartPos = 0;
@@ -236,11 +251,10 @@ class VideoManager {
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
                     String secondPassCommand = "ffmpeg -y -i " +
-                            parsedVidPath +
+                            twoPassedFilePath +
                             " -ss " + lastStartPos +
-                            ENCODE_PARAMS +
+                            THREE_PASS_ENCODE_PARAMS +
                             " -fs " + LIMIT_SIZE_BYTES +
-                            " -pass 2 " +
                             lastProcessedClipPath;
 
                     ManageServer.executeCommandRemotely(secondPassCommand, true);
