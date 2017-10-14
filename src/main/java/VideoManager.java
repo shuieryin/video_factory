@@ -196,6 +196,7 @@ class VideoManager {
                 if (0 == totalDuration) {
                     continue;
                 }
+                System.out.println("=======totalDuration: " + totalDuration);
 
                 long clipCount = 0;
 
@@ -206,6 +207,7 @@ class VideoManager {
                 }
                 //String pending_merge_folder = pending_process_folder.replaceFirst("pending_process", "pending_merge");
                 String gameName = vidPathMatcher.group(3);
+                System.out.println("=======gameName: " + gameName);
 
                 ProcessedGame processedGame = processedGames.get(gameName);
                 if (null == processedGame) {
