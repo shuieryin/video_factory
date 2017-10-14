@@ -28,7 +28,6 @@ class VideoManager {
     private static final int HEIGHT_SIZE = 1280;
     private static final int WIDTH_SIZE = 720;
     private static final int TWO_PASS_BIT_RATE = 1760;
-    private static final int THREE_PASS_BIT_RATE = 1700;
     private static final int SAMPLE_RATE = 44100;
 
     private static final String TWO_PASS_ENCODE_PARAMS = " " +
@@ -91,17 +90,10 @@ class VideoManager {
             "vaguedenoiser=" +
             "threshold=4:" +
             "method=2 " +
-            "  -color_primaries smpte170m " +
+            "  -color_primaries film " +
             "  -color_trc smpte170m " +
             "  -colorspace smpte170m " +
             "  -color_range tv ";
-
-    private static final String THREE_PASS_ENCODE_PARAMS = " " +
-            "    -threads 0 " +
-            "    -b:v " + THREE_PASS_BIT_RATE + "k " +
-            "    -maxrate " + THREE_PASS_BIT_RATE + "k " +
-            "    -bufsize " + THREE_PASS_BIT_RATE + "k " +
-            "    -vcodec libx264 ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -251,7 +243,7 @@ class VideoManager {
                     String thirdPassCommand = "ffmpeg -y -i " +
                             twoPassedFilePath +
                             " -ss " + lastStartPos +
-                            THREE_PASS_ENCODE_PARAMS +
+                            TWO_PASS_ENCODE_PARAMS +
                             " -fs " + LIMIT_SIZE_BYTES +
                             lastProcessedClipPath;
 
