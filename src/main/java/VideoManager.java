@@ -101,8 +101,7 @@ class VideoManager {
             "    -b:v " + THREE_PASS_BIT_RATE + "k " +
             "    -maxrate " + THREE_PASS_BIT_RATE + "k " +
             "    -bufsize " + THREE_PASS_BIT_RATE + "k " +
-            "    -vcodec libx264 " +
-            "    z9G-3-720-two-pass-170m-full-1760-mp4-13-2.mp4";
+            "    -vcodec libx264 ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
