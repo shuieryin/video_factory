@@ -236,26 +236,27 @@ class VideoManager {
                 String firstPassCommand = "ffmpeg -y -i " +
                         parsedVidPath +
                         TWO_PASS_ENCODE_PARAMS +
-                        " -pass 1 -f mp4 /dev/null " +
-                        " && ffmpeg -y -i " +
+                        " -pass 1 -f mp4 /dev/null";
+                ManageServer.executeCommandRemotely(firstPassCommand, true);
+                String secondPassCommand = "ffmpeg -y -i " +
                         parsedVidPath +
                         TWO_PASS_ENCODE_PARAMS +
                         " -pass 2 " +
                         twoPassedFilePath;
-                ManageServer.executeCommandRemotely(firstPassCommand, true);
+                ManageServer.executeCommandRemotely(secondPassCommand, true);
 
                 long startPos = 0, lastStartPos = 0;
                 String lastProcessedClipPath;
                 do {
                     lastProcessedClipPath = processedVideo.processedPath + processedVideo.uuid() + "-" + (++clipCount) + "." + OUTPUT_FORMAT;
-                    String secondPassCommand = "ffmpeg -y -i " +
+                    String thirdPassCommand = "ffmpeg -y -i " +
                             twoPassedFilePath +
                             " -ss " + lastStartPos +
                             THREE_PASS_ENCODE_PARAMS +
                             " -fs " + LIMIT_SIZE_BYTES +
                             lastProcessedClipPath;
 
-                    ManageServer.executeCommandRemotely(secondPassCommand, true);
+                    ManageServer.executeCommandRemotely(thirdPassCommand, true);
 
                     long lastClipDuration = videoDuration(lastProcessedClipPath);
                     long remainDuration = totalDuration - startPos - lastClipDuration;
