@@ -62,7 +62,6 @@ class VideoManager {
             "trellis=2:" +
             "weightb=1:" +
             "no-fast-pskip=1:" +
-            "deadzone-intra=1:" +
             "no-dct-decimate=1:" +
             "level=4 " +
             "  -g 240 " +
