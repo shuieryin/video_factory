@@ -90,7 +90,7 @@ class VideoManager {
             "vaguedenoiser=" +
             "threshold=4:" +
             "method=2 " +
-            "  -color_primaries film " +
+            "  -color_primaries smpte170m " +
             "  -color_trc smpte170m " +
             "  -colorspace smpte170m " +
             "  -color_range tv ";
