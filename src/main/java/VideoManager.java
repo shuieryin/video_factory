@@ -27,19 +27,16 @@ class VideoManager {
 
     private static final int HEIGHT_SIZE = 1280;
     private static final int WIDTH_SIZE = 720;
-    //    private static final int CRF = 5;
-    private static final int AUDIO_BIT_RATE = 128;
-    private static final int BIT_RATE = 1650;
-//    private static final int FPS = 50;
+    private static final int BIT_RATE = 1760;
+    private static final int SAMPLE_RATE = 44100;
 
     private static final String ENCODE_PARAMS = " " +
             "  -threads 0 " +
             "  -vsync 1 " +
             "  -b:v " + BIT_RATE + "k " +
-            "  -minrate " + BIT_RATE + "k " +
             "  -maxrate " + BIT_RATE + "k " +
             "  -bufsize 10M " +
-            "  -acodec aac -strict -2 -sample_rate 44100 -b:a " + AUDIO_BIT_RATE + "k " +
+            "  -acodec aac -ar " + SAMPLE_RATE + " " +
             "  -vcodec libx264 " +
             "  -x264opts " +
             "threads=0:" +
@@ -66,7 +63,8 @@ class VideoManager {
             "weightb=1:" +
             "no-fast-pskip=1:" +
             "deadzone-intra=1:" +
-            "no-dct-decimate=1 " +
+            "no-dct-decimate=1:" +
+            "level=4 " +
             "  -g 240 " +
             "  -b_strategy 2 " +
             "  -chromaoffset 1 " +
