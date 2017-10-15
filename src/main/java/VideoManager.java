@@ -18,8 +18,9 @@ class VideoManager {
     private static final String vidPathPatternStr = "^(.*)/(([^/]+)\\s(\\d{2})\\.(\\d{2})\\.(\\d{4})\\s-\\s(\\d{2})\\.(\\d{2})\\.(\\d{2})\\.(\\d{2}))\\.([a-zA-Z0-9]+)";
     private static Pattern vidPathPattern = Pattern.compile(vidPathPatternStr + "$");
     private static Pattern processedVidPathPattern = Pattern.compile(vidPathPatternStr + "\\.done\\.(\\d+)$");
-    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
+    //    private static final long LIMIT_SIZE_BYTES = (1024 * 1024 * 1024 * 2L) - (1024 * 1024 * 20);
     private static Pattern timePattern = Pattern.compile("(\\d+):(\\d{2}):(\\d{2})\\.(\\d{2})");
+    private static final long PART_PER_SECONDS = 1800;
     private static final String SOURCE_PATH = "/run/user/1000/gvfs/smb-share:server=192.168.1.111,share=smbshare/vids/pending_merge";
     private static final String PENDING_MERGE_PATH = "/srv/grand_backup/samba/vids/pending_merge";
     private static final String MERGED_PATH = "/srv/grand_backup/samba/vids/merged";
@@ -44,27 +45,25 @@ class VideoManager {
             "partitions=all:" +
             "subme=10:" +
             "b-adapt=2:" +
-            "scenecut=40:" +
+            "scenecut=0:" +
             "deblock=0,0:" +
             "ipratio=1.41:" +
             "direct=auto:" +
             "chroma-qp-offset=1:" +
-            "colormatrix=smpte170m:" +
-            "keyint=240:" +
-            "me=umh:" +
-            "merange=16:" +
+            "colormatrix=smpte240m:" +
+            "keyint=210:" +
+            "me=esa:" +
             "mixed-refs=1:" +
             "psy-rd=0.5,0.0:" +
-            "qcomp=0.6:" +
+            "qcomp=0.7:" +
             "qpmax=51:" +
             "qpmin=10:" +
             "qpstep=4:" +
             "trellis=2:" +
             "weightb=1:" +
-            "no-fast-pskip=1:" +
-            "no-dct-decimate=1:" +
+            "aq-mode=2:" +
             "level=4 " +
-            "  -g 240 " +
+            "  -g 210 " +
             "  -b_strategy 2 " +
             "  -chromaoffset 1 " +
             "  -sc_threshold 40 " +
@@ -79,6 +78,15 @@ class VideoManager {
             "  -qdiff 4 " +
             "  -trellis 2 " +
             "  -mbd rd " +
+            "  -color_primaries smpte240m " +
+            "  -color_trc smpte240m " +
+            "  -colorspace smpte240m " +
+            "  -color_range jpeg " +
+            "  -bidir_refine 4 " +
+            "  -aq-mode 2 " +
+            "  -cmp chroma " +
+            "  -preme 1 " +
+            "  -precmp rd " +
             "  -vf " +
             "scale=" +
             "w=" + HEIGHT_SIZE + ":" +
@@ -86,14 +94,7 @@ class VideoManager {
             "unsharp=" +
             "luma_msize_x=5:" +
             "luma_msize_y=5:" +
-            "luma_amount=1.5," +
-            "vaguedenoiser=" +
-            "threshold=4:" +
-            "method=2 " +
-            "  -color_primaries film " +
-            "  -color_trc smpte170m " +
-            "  -colorspace smpte170m " +
-            "  -color_range tv ";
+            "luma_amount=1.0 ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
@@ -243,8 +244,8 @@ class VideoManager {
                     String thirdPassCommand = "ffmpeg -y -i " +
                             twoPassedFilePath +
                             " -ss " + lastStartPos +
-                            TWO_PASS_ENCODE_PARAMS +
-                            " -fs " + LIMIT_SIZE_BYTES +
+                            " -t " + PART_PER_SECONDS + " " +
+                            " -vcodec copy " +
                             lastProcessedClipPath;
 
                     ManageServer.executeCommandRemotely(thirdPassCommand, true);
