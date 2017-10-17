@@ -50,8 +50,8 @@ class VideoManager {
             "ipratio=1.41:" +
             "direct=auto:" +
             "chroma-qp-offset=1:" +
-            "colormatrix=smpte240m:" +
-            "keyint=210:" +
+            "colormatrix=bt709:" +
+            "keyint=240:" +
             "me=esa:" +
             "mixed-refs=1:" +
             "psy-rd=0.5,0.0:" +
@@ -78,9 +78,9 @@ class VideoManager {
             "  -qdiff 4 " +
             "  -trellis 2 " +
             "  -mbd rd " +
-            "  -color_primaries smpte240m " +
-            "  -color_trc smpte240m " +
-            "  -colorspace smpte240m " +
+            "  -color_primaries bt709 " +
+            "  -color_trc bt709 " +
+            "  -colorspace bt709 " +
             "  -color_range jpeg " +
             "  -bidir_refine 4 " +
             "  -aq-mode 2 " +
