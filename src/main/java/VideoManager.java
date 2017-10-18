@@ -29,7 +29,7 @@ class VideoManager {
     private static final int HEIGHT_SIZE = 1280;
     private static final int WIDTH_SIZE = 720;
     private static final int TWO_PASS_BIT_RATE = 1760;
-//    private static final int SAMPLE_RATE = 44100;
+    private static final int SAMPLE_RATE = 44100;
 
     private static final String TWO_PASS_ENCODE_PARAMS = " " +
             "  -threads 0 " +
@@ -37,7 +37,7 @@ class VideoManager {
             "  -b:v " + TWO_PASS_BIT_RATE + "k " +
             "  -maxrate " + TWO_PASS_BIT_RATE + "k " +
             "  -bufsize 10M " +
-            //"  -acodec aac -ar " + SAMPLE_RATE + " " +
+            "  -acodec aac -ar " + SAMPLE_RATE + " " +
             "  -vcodec libx264 " +
             "  -x264opts " +
             "threads=0:" +
