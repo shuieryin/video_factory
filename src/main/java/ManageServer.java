@@ -33,6 +33,13 @@ public class ManageServer extends NanoHTTPD {
     private static boolean isCommandDone = false;
     private Thread receiveSocketThread;
     private static ScheduledExecutorService scheduler;
+    private static final String[] omitTexts = {
+            "Past duration",
+            "Last message repeated"
+    };
+    private static final String[] forceShownTexts = {
+            "speed="
+    };
 
     ManageServer() throws IOException {
         super(4567);
@@ -44,7 +51,26 @@ public class ManageServer extends NanoHTTPD {
                     String decodedLine = "";
                     while (null != commandIn && null != (responseLine = commandIn.readLine())) {
                         decodedLine = new String(Base64.decode(responseLine));
-                        System.out.println(decodedLine);
+                        boolean isOmit = false;
+                        for (String omitText : omitTexts) {
+                            if (decodedLine.contains(omitText)) {
+                                isOmit = true;
+                                break;
+                            }
+                        }
+
+                        boolean isForceShown = false;
+                        for (String forceShownText : forceShownTexts) {
+                            if (decodedLine.contains(forceShownText)) {
+                                isForceShown = true;
+                                break;
+                            }
+                        }
+
+                        if (!isOmit || isForceShown) {
+                            System.out.println(decodedLine);
+                        }
+
                         if ("done\n".equals(decodedLine)) {
                             break;
                         }
@@ -187,7 +213,7 @@ public class ManageServer extends NanoHTTPD {
     }
 
     static void executeCommandRemotely(String command, boolean isEncode) {
-        System.out.println("=======executing command remotely: [" + command + "]");
+        System.out.println("[" + LocalDateTime.now() + "] executing command remotely: [" + command + "]");
         try {
             String encodedCommand = isEncode ? Base64.encode(command.getBytes("UTF-8")) : command;
             commandOut.writeUTF(encodedCommand);
@@ -206,7 +232,7 @@ public class ManageServer extends NanoHTTPD {
         StringBuilder output = new StringBuilder();
 
         try {
-            System.out.println("=======executing command: [" + command + "]");
+            System.out.println("[" + LocalDateTime.now() + "] executing command: [" + command + "]");
             String[] cmd = {
                     "/bin/bash",
                     "-c",

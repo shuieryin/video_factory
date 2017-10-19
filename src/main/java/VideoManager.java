@@ -33,7 +33,6 @@ class VideoManager {
 
     private static final String TWO_PASS_ENCODE_PARAMS = " " +
             "  -threads 0 " +
-            "  -vsync 1 " +
             "  -b:v " + TWO_PASS_BIT_RATE + "k " +
             "  -maxrate " + TWO_PASS_BIT_RATE + "k " +
             "  -bufsize 10M " +
@@ -90,9 +89,9 @@ class VideoManager {
             "w=" + HEIGHT_SIZE + ":" +
             "h=" + WIDTH_SIZE + "," +
             "unsharp=" +
-            "luma_msize_x=5:" +
-            "luma_msize_y=5:" +
-            "luma_amount=1.0 ";
+            "luma_msize_x=7:" +
+            "luma_msize_y=7:" +
+            "luma_amount=1.5 ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
