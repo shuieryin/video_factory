@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 class VideoManager {
 
-    private static final String OUTPUT_FORMAT = "flv";
+    private static final String OUTPUT_FORMAT = "mp4";
     @SuppressWarnings("FieldCanBeLocal")
     private static int OVERLAP_DURATION_SECONDS = 1;
     private static Pattern processedVidPattern = Pattern.compile("\\.done\\.(\\d+)$");
@@ -45,7 +45,6 @@ class VideoManager {
             "partitions=all:" +
             "subme=10:" +
             "b-adapt=2:" +
-            "scenecut=0:" +
             "deblock=0,0:" +
             "ipratio=1.41:" +
             "direct=auto:" +
@@ -55,25 +54,18 @@ class VideoManager {
             "mixed-refs=1:" +
             "psy-rd=0.5,0.0:" +
             "qcomp=0.7:" +
-            "qpmax=51:" +
-            "qpmin=10:" +
-            "qpstep=4:" +
             "trellis=2:" +
             "weightb=1:" +
             "aq-mode=2:" +
             "level=4.1 " +
             "  -b_strategy 2 " +
             "  -chromaoffset 1 " +
-            "  -sc_threshold 40 " +
             "  -tune film " +
             "  -partitions all " +
             "  -subq 10 " +
             "  -me_method full " +
             "  -i_qfactor 1.41 " +
             "  -me_range 16 " +
-            "  -qmin 10 " +
-            "  -qmax 51 " +
-            "  -qdiff 4 " +
             "  -trellis 2 " +
             "  -mbd rd " +
             "  -color_primaries bt709 " +
