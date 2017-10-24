@@ -52,6 +52,7 @@ class VideoManager {
             "chroma-qp-offset=1:" +
             "colormatrix=bt709:" +
             "me=esa:" +
+            "merange=24:" +
             "mixed-refs=1:" +
             "psy-rd=0.5,0.0:" +
             "qcomp=0.7:" +
@@ -69,8 +70,8 @@ class VideoManager {
             "  -partitions all " +
             "  -subq 10 " +
             "  -me_method full " +
+            "  -me_range 24 " +
             "  -i_qfactor 1.41 " +
-            "  -me_range 16 " +
             "  -qmin 10 " +
             "  -qmax 51 " +
             "  -qdiff 4 " +
@@ -88,11 +89,11 @@ class VideoManager {
             "  -vf " +
             "scale=" +
             "w=" + HEIGHT_SIZE + ":" +
-            "h=" + WIDTH_SIZE + "," +
-            "unsharp=" +
-            "luma_msize_x=5:" +
-            "luma_msize_y=5:" +
-            "luma_amount=1.5 ";
+            "h=" + WIDTH_SIZE + " ";
+//            "unsharp=" +
+//            "luma_msize_x=5:" +
+//            "luma_msize_y=5:" +
+//            "luma_amount=1.5 ";
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
