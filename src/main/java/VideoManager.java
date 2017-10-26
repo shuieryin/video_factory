@@ -55,9 +55,6 @@ class VideoManager {
             "mixed-refs=1:" +
             "psy-rd=0.5,0.0:" +
             "qcomp=0.7:" +
-            "qpmax=51:" +
-            "qpmin=10:" +
-            "qpstep=4:" +
             "trellis=2:" +
             "weightb=1:" +
             "aq-mode=2:" +
@@ -70,9 +67,6 @@ class VideoManager {
             "  -me_method full " +
             "  -me_range 24 " +
             "  -i_qfactor 1.41 " +
-            "  -qmin 10 " +
-            "  -qmax 51 " +
-            "  -qdiff 4 " +
             "  -trellis 2 " +
             "  -mbd rd " +
             "  -color_primaries bt709 " +
