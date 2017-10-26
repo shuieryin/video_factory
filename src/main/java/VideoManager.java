@@ -45,7 +45,6 @@ class VideoManager {
             "partitions=all:" +
             "subme=10:" +
             "b-adapt=2:" +
-            "scenecut=0:" +
             "deblock=0,0:" +
             "ipratio=1.41:" +
             "direct=auto:" +
@@ -65,7 +64,6 @@ class VideoManager {
             "level=4.1 " +
             "  -b_strategy 2 " +
             "  -chromaoffset 1 " +
-            "  -sc_threshold 0 " +
             "  -tune film " +
             "  -partitions all " +
             "  -subq 10 " +
