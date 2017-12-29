@@ -89,7 +89,7 @@ class VideoManager {
 
     private Map<String, ProcessedGame> processedGames = new LinkedHashMap<>();
 
-    VideoManager() throws InterruptedException, IOException {
+    VideoManager() throws IOException {
         ManageServer.executeCommand("cp " + SOURCE_PATH + " " + PENDING_MERGE_PATH);
         initProcessVideo();
     }
