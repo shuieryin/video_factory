@@ -38,6 +38,7 @@ class VideoManager {
             "  -maxrate " + TWO_PASS_BIT_RATE + "k " +
             "  -bufsize 10M " +
             "  -acodec aac -ar " + SAMPLE_RATE + " -b:a " + AUDIO_BIT_RATE + "k " +
+            "  -pix_fmt yuv420p " +
             "  -vcodec libx264 " +
             "  -x264opts " +
             "threads=0:" +
